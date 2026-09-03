@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+huggingface_hub
+winsdk
+requests
+websocket-client
+keyboard
+soundcard
+soundfile
+numpy
+pyperclip
+Pillow

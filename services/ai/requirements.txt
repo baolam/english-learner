@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+openai-whisper
+torch
+pydantic
+llama-cpp-python
+huggingface_hub
+winsdk

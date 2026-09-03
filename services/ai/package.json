@@ -1,0 +1,8 @@
+{
+  "name": "@english-learner/ai-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "../../.venv/Scripts/python.exe main.py"
+  }
+}

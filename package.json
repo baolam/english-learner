@@ -1,0 +1,17 @@
+{
+  "name": "english-learner-workspace",
+  "private": true,
+  "workspaces": [
+    "mobile",
+    "backend",
+    "shared/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.12"
+  }
+}

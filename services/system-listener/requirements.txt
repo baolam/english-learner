@@ -1,0 +1,8 @@
+requests
+websocket-client
+keyboard
+soundcard
+soundfile
+numpy
+pyperclip
+Pillow
