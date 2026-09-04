@@ -40,6 +40,11 @@ redis_client = redis.from_url(REDIS_URL)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 
+print("Loading Whisper model...")
+whisper_model = whisper.load_model("base", device=device)
+# whisper_model = whisper.load_model("base", device="cpu")
+
+
 print("Loading Llama model...")
 try:
     llama_service = LlamaService()
@@ -61,9 +66,6 @@ async def run_windows_ocr(image_path: str, lang_code: str = 'en-US'):
     engine = OcrEngine.try_create_from_language(lang)
     result = await engine.recognize_async(software_bitmap)
     return result.text
-
-print("Loading Whisper model...")
-whisper_model = whisper.load_model("base", device=device)
 
 class TextPayload(BaseModel):
     text: str

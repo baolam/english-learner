@@ -16,7 +16,8 @@ class LlamaService:
         print("Loading Llama model with llama-cpp-python...")
         self.llm = Llama(
             model_path=self.model_path,
-            n_ctx=2048,
+            n_ctx=1024,
+            n_batch=256,
             n_gpu_layers=0, # Use CPU only
             verbose=True
         )
