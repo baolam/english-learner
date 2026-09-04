@@ -20,24 +20,53 @@ interface Schedule {
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [ankiProgress, setAnkiProgress] = useState({ newCards: 12, reviewCards: 45 });
   const { isRightPanelOpen, toggleRightPanel } = useAppStore();
 
   useEffect(() => {
-    // Tạm thời mock data hoặc gọi API thật nếu backend đang chạy
-    setTodos([
-      { id: '1', title: 'Đọc xong Chương 2 sách AI', completed: false },
-      { id: '2', title: 'Review 50 thẻ Anki môn Toán', completed: true },
-    ]);
-    
-    setSchedules([
-      { id: '1', title: 'Đọc paper "Attention is all you need"', time: '19:00 - 21:00' }
-    ]);
+    const fetchData = async () => {
+      try {
+        const todosRes = await axios.get('http://localhost:3000/api/todos');
+        const mappedTodos = todosRes.data.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          completed: t.isCompleted
+        }));
+        setTodos(mappedTodos);
+      } catch (error) {
+        console.error('Error fetching todos:', error);
+      }
 
-    // Uncomment when backend is ready
-    /*
-    axios.get('http://localhost:3000/api/todos').then(res => setTodos(res.data));
-    axios.get('http://localhost:3000/api/schedules').then(res => setSchedules(res.data));
-    */
+      try {
+        const schedulesRes = await axios.get('http://localhost:3000/api/schedules');
+        const mappedSchedules = schedulesRes.data.map((s: any) => {
+          const start = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const end = new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          return {
+            id: s.id,
+            title: s.title,
+            time: `${start} - ${end}`
+          };
+        });
+        setSchedules(mappedSchedules);
+      } catch (error) {
+        console.error('Error fetching schedules:', error);
+      }
+      
+      try {
+        // Fetch Anki progress for a default deck, e.g. "Default"
+        const learnRes = await axios.get('http://localhost:3000/anki/learn?deck=Default');
+        const reviewRes = await axios.get('http://localhost:3000/anki/review?deck=Default');
+        setAnkiProgress({
+          newCards: learnRes.data.data ? learnRes.data.data.length : 0,
+          reviewCards: reviewRes.data.data ? reviewRes.data.data.length : 0
+        });
+      } catch (error) {
+        console.error('Error fetching Anki progress:', error);
+      }
+    };
+    
+    fetchData();
   }, []);
 
   return (
@@ -88,11 +117,11 @@ export default function Home() {
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Anki Progress</h2>
           <div className="flex justify-between mb-2">
             <span className="text-slate-600">New Cards</span>
-            <span className="font-semibold text-blue-600">12</span>
+            <span className="font-semibold text-blue-600">{ankiProgress.newCards}</span>
           </div>
           <div className="flex justify-between mb-6">
             <span className="text-slate-600">Review</span>
-            <span className="font-semibold text-orange-500">45</span>
+            <span className="font-semibold text-orange-500">{ankiProgress.reviewCards}</span>
           </div>
           <button className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
             Start Reviewing

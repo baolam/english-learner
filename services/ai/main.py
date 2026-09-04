@@ -202,9 +202,52 @@ async def process_chat(req: ChatRequest):
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama model failed to load during startup.")
     try:
-        # Sử dụng asyncio.to_thread để tránh block event loop
-        response = await asyncio.to_thread(llama_service.generate_response, req.prompt)
+        response_text = ""
+        # Dùng asyncio.to_thread để loop qua stream
+        def sync_stream():
+            res = ""
+            for chunk in llama_service.generate_stream(req.prompt):
+                res += chunk
+            return res
+            
+        response = await asyncio.to_thread(sync_stream)
         return {"response": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chat/stream")
+async def process_chat_stream(req: ChatRequest):
+    if llama_service is None:
+        raise HTTPException(status_code=500, detail="Llama model failed to load.")
+    try:
+        from fastapi.responses import StreamingResponse
+        import queue
+        
+        # Use a queue to communicate between thread and async generator
+        q = queue.Queue()
+        
+        def run_stream():
+            try:
+                for chunk in llama_service.generate_stream(req.prompt):
+                    q.put(chunk)
+            finally:
+                q.put(None) # Sentinel value to signal end
+                
+        # Start thread
+        import threading
+        t = threading.Thread(target=run_stream)
+        t.start()
+        
+        async def generate():
+            while True:
+                # Use to_thread to wait for next item in queue without blocking
+                chunk = await asyncio.to_thread(q.get)
+                if chunk is None:
+                    break
+                await redis_client.publish("ai_stream", json.dumps({"text": chunk}))
+                yield chunk
+
+        return StreamingResponse(generate(), media_type="text/plain")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import fs from 'fs';
 import { broadcastToFrontend } from '../../utils/websocket';
+import { broadcastSSE } from '../../utils/sse';
 import { redisPublisher } from '../../utils/redis';
 
 export const handleScreenUpload = async (req: Request, res: Response): Promise<void> => {
@@ -50,6 +51,7 @@ export const handleSoundUpload = async (req: Request, res: Response): Promise<vo
     // Broadcast result to frontend
     if (extractedText) {
       broadcastToFrontend('sound_result', { text: extractedText });
+      broadcastSSE('sound_result', { text: extractedText });
     }
 
     res.status(200).json({ message: 'Sound processed.', text: extractedText });
@@ -72,6 +74,7 @@ export const handleTextUpload = (req: Request, res: Response): void => {
     console.log(`[Webhook] Received TEXT webhook: "${textContent}"`);
 
     broadcastToFrontend('text_result', { text: textContent });
+    broadcastSSE('text_result', { text: textContent });
 
     res.status(200).json({ message: 'Text received successfully.', text: textContent });
   } catch (error) {

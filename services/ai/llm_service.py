@@ -50,6 +50,23 @@ class LlamaService:
         except Exception as e:
             return f"[Lỗi Llama-cpp] Không thể chạy AI: {e}"
 
+    def generate_stream(self, user_prompt: str):
+        prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a helpful, smart, and concise AI assistant. You only answer in English.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        try:
+            stream = self.llm(
+                prompt,
+                max_tokens=512,
+                temperature=0.7,
+                stop=["<|eot_id|>"],
+                echo=False,
+                stream=True
+            )
+            for chunk in stream:
+                text = chunk["choices"][0]["text"]
+                yield text
+        except Exception as e:
+            yield f"[Lỗi Llama-cpp stream] {e}"
+
 if __name__ == "__main__":
     ai_service = LlamaService()
     prompt = "Give me a 3-sentence summary of how to learn a new language effectively."

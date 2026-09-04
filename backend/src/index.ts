@@ -48,6 +48,31 @@ app.get('/health', (req, res) => {
 });
 
 import { setWss } from './utils/websocket';
+import { addSSEClient } from './utils/sse';
+
+app.get('/api/stream', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+  res.write('\n'); // keep-alive
+  addSSEClient(res);
+});
+
+import axios from 'axios';
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    // Forward the chat request to AI Service (running on 8000)
+    // AI Service will process and push stream to Redis, which SSE will broadcast
+    const aiRes = await axios.post('http://localhost:8000/api/chat/stream', req.body, { responseType: 'stream' });
+    aiRes.data.pipe(res);
+  } catch (error) {
+    console.error('Error proxying chat to AI service:', error);
+    res.status(500).json({ error: 'Failed to contact AI service' });
+  }
+});
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
