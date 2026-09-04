@@ -81,7 +81,7 @@ def handle_audio_stream_end():
     return ""
 
 def handle_text(text: str):
-    """Callback xử lý khi có text mới gửi (Ctrl+E)"""
+    """Callback xử lý khi có text mới gửi (Ctrl+Q)"""
     file_name = "text.txt"
     file_path = os.path.join(TEMP_DIR, file_name)
     
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     config = {
         'screenshot_hotkey': 'windows+shift+s',  # Phím kích hoạt Snipping Tool của Windows
         'audio_hotkey': 'ctrl+shift+a',
-        'text_hotkey': 'ctrl+e',                 # Phím gửi text mới
+        'text_hotkey': 'ctrl+q',                 # Phím gửi text mới
         'on_screenshot_captured': handle_screenshot,
         'on_audio_captured': handle_audio,
         'on_audio_stream_chunk': handle_audio_stream_chunk,

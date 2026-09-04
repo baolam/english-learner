@@ -5,6 +5,7 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
 
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import tempfile
 import shutil
 import asyncio

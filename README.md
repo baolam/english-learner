@@ -8,9 +8,11 @@ LingoAnki is an English learning application that integrates with AI (Google Gen
 
 The project is divided into several workspaces:
 
+- **`frontend/`**: Contains the frontend applications for different platforms.
+  - **`web/`**: The web application built with React, Vite, and TailwindCSS.
+  - **`mobile/`**: The mobile application built with React Native for iOS and Android.
+  - **`desktop/`**: The desktop application built with WPF.
 - **`backend/`**: The backend API server built with Node.js, Express, and TypeScript. It handles integrations with Google Generative AI and Anki (AnkiConnect).
-- **`web/`**: The web application built with React, Vite, and TailwindCSS.
-- **`mobile/`**: The mobile application built with React Native for iOS and Android.
 - **`shared/`**: Shared types and utilities used across different parts of the project.
 - **`experiments/`**: Scripts and test files for experimental features (e.g., Anki API tests).
 
@@ -59,7 +61,7 @@ npm run dev
 
 ### 3. Web Setup
 ```bash
-cd web
+cd frontend/web
 npm install
 ```
 - Start the Vite development server:
@@ -69,7 +71,7 @@ npm run dev
 
 ### 4. Mobile Setup
 ```bash
-cd mobile
+cd frontend/mobile
 npm install
 # For iOS:
 cd ios && pod install && cd ..

@@ -7,7 +7,11 @@ import { WebSocketServer, WebSocket } from 'ws';
 import inputRoutes from './features/input/input.routes';
 import mediaRoutes from './features/media/media.routes';
 import ankiRoutes from './features/anki/anki.routes';
+import notificationRoutes from './features/notifications/notification.routes';
+import scheduleRoutes from './features/schedules/schedule.routes';
+import todoRoutes from './features/todos/todo.routes';
 import { initRedisSubscriber } from './utils/redis';
+import { startScheduleCron } from './utils/cron/schedule.cron';
 import fs from 'fs';
 import path from 'path';
 
@@ -25,6 +29,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/input', inputRoutes);
 app.use('/media', mediaRoutes);
 app.use('/anki', ankiRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/schedules', scheduleRoutes);
+app.use('/api/todos', todoRoutes);
 
 // Serve static files
 const screenshotsDir = process.env.SCREENSHOTS_UPLOAD_DIR || './uploads/screenshots';
@@ -40,11 +47,13 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'LingoAnki Backend API' });
 });
 
+import { setWss } from './utils/websocket';
+
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 // Setup Global WebSocket broadcast helper
-(global as any).wss = wss;
+setWss(wss);
 
 const AI_WS_URL = process.env.AI_WS_URL || 'ws://localhost:8000/api/whisper/stream';
 
@@ -81,6 +90,9 @@ wss.on('connection', (ws: WebSocket, req) => {
 
 // Khởi tạo Redis Subscriber
 initRedisSubscriber();
+
+// Khởi chạy cron job lịch học
+startScheduleCron();
 
 server.listen(PORT, () => {
   console.log(`[Server] LingoAnki Backend is running on http://localhost:${PORT}`);

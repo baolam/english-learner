@@ -18,7 +18,7 @@ class SystemListener:
         # Cấu hình phím tắt
         self.screenshot_hotkey = self.config.get('screenshot_hotkey', 'windows+shift+s')
         self.audio_hotkey = self.config.get('audio_hotkey', 'ctrl+shift+a')
-        self.text_hotkey = self.config.get('text_hotkey', 'ctrl+e')
+        self.text_hotkey = self.config.get('text_hotkey', 'ctrl+q')
         
         # Đăng ký các Callback
         self.on_screenshot_captured = self.config.get('on_screenshot_captured', self._default_screenshot_cb)
@@ -76,7 +76,7 @@ class SystemListener:
             pass
 
     def capture_text(self):
-        """Được gọi khi bấm Ctrl+E"""
+        """Được gọi khi bấm Ctrl+Q"""
         threading.Thread(target=self._wait_for_clipboard_text).start()
 
     def _wait_for_clipboard_image(self):

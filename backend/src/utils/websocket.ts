@@ -1,9 +1,14 @@
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
+
+let wssInstance: WebSocketServer | null = null;
+
+export const setWss = (wss: WebSocketServer) => {
+  wssInstance = wss;
+};
 
 export const broadcastToFrontend = (type: string, payload: any) => {
-  const wss = (global as any).wss;
-  if (wss && wss.clients) {
-    wss.clients.forEach((client: any) => {
+  if (wssInstance && wssInstance.clients) {
+    wssInstance.clients.forEach((client: any) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type, payload }));
       }

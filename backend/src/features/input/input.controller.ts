@@ -1,16 +1,21 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
 import { broadcastToFrontend } from '../../utils/websocket';
 import { redisPublisher } from '../../utils/redis';
 
-export const handleScreenUpload = async (req: Request, res: Response): Promise<any> => {
+export const handleScreenUpload = async (req: Request, res: Response): Promise<void> => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: 'No file uploaded.' });
+    if (!file) {
+      res.status(400).json({ error: 'No file uploaded.' });
+      return;
+    }
 
     console.log(`[Webhook] Received SCREENSHOT webhook. Pushing to Redis queue...`);
 
-    // Convert buffer to base64 to send via Redis
-    const base64Image = file.buffer.toString('base64');
+    // Read from disk asynchronously
+    const fileBuffer = await fs.promises.readFile(file.path);
+    const base64Image = fileBuffer.toString('base64');
     const taskId = Date.now().toString();
 
     const taskPayload = {
@@ -22,17 +27,19 @@ export const handleScreenUpload = async (req: Request, res: Response): Promise<a
     await redisPublisher.rpush('ocr_tasks', JSON.stringify(taskPayload));
 
     res.status(200).json({ message: 'Screenshot received and queued.', task_id: taskId });
-  } catch (error: any) {
-    console.error(`[Webhook Error] Processing screen webhook failed:`, error.message);
+  } catch (error) {
+    const err = error as Error;
+    console.error(`[Webhook Error] Processing screen webhook failed:`, err.message);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
-export const handleSoundUpload = async (req: Request, res: Response): Promise<any> => {
+export const handleSoundUpload = async (req: Request, res: Response): Promise<void> => {
   try {
     const file = req.file;
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded.' });
+      res.status(400).json({ error: 'No file uploaded.' });
+      return;
     }
 
     // Kết quả text giờ đây được đính kèm thẳng từ system-listener
@@ -46,16 +53,20 @@ export const handleSoundUpload = async (req: Request, res: Response): Promise<an
     }
 
     res.status(200).json({ message: 'Sound processed.', text: extractedText });
-  } catch (error: any) {
-    console.error(`[Webhook Error] Processing sound webhook failed:`, error?.response?.data || error.message);
+  } catch (error) {
+    const err = error as Error;
+    console.error(`[Webhook Error] Processing sound webhook failed:`, err.message);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };
 
-export const handleTextUpload = (req: Request, res: Response): any => {
+export const handleTextUpload = (req: Request, res: Response): void => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: 'No file uploaded.' });
+    if (!file) {
+      res.status(400).json({ error: 'No file uploaded.' });
+      return;
+    }
 
     const textContent = file.buffer.toString('utf-8');
     console.log(`[Webhook] Received TEXT webhook: "${textContent}"`);
@@ -63,8 +74,9 @@ export const handleTextUpload = (req: Request, res: Response): any => {
     broadcastToFrontend('text_result', { text: textContent });
 
     res.status(200).json({ message: 'Text received successfully.', text: textContent });
-  } catch (error: any) {
-    console.error(`[Webhook Error] Processing text webhook failed:`, error.message);
+  } catch (error) {
+    const err = error as Error;
+    console.error(`[Webhook Error] Processing text webhook failed:`, err.message);
     res.status(500).json({ error: 'Internal server error.' });
   }
 };

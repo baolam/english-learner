@@ -2,11 +2,15 @@ import { Router } from 'express';
 import multer from 'multer';
 import { handleScreenUpload, handleSoundUpload, handleTextUpload } from './input.controller';
 
-const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+import { diskStorage } from '../../utils/upload';
 
-router.post('/screen', upload.single('file'), handleScreenUpload);
-router.post('/sound', upload.single('file'), handleSoundUpload);
-router.post('/text', upload.single('file'), handleTextUpload);
+const router = Router();
+const uploadText = multer({ storage: multer.memoryStorage() });
+const uploadScreen = multer({ storage: diskStorage('screenshots') });
+const uploadSound = multer({ storage: diskStorage('audio') });
+
+router.post('/screen', uploadScreen.single('file'), handleScreenUpload);
+router.post('/sound', uploadSound.single('file'), handleSoundUpload);
+router.post('/text', uploadText.single('file'), handleTextUpload);
 
 export default router;

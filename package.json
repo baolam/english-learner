@@ -2,16 +2,17 @@
   "name": "english-learner-workspace",
   "private": true,
   "workspaces": [
-    "mobile",
+    "frontend/*",
     "backend",
     "shared/*",
     "services/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "concurrently -c \"blue,green,magenta,yellow\" -n \"backend,listener,ai,redis\" \"npm run dev -w backend\" \"npm run dev -w @english-learner/system-listener\" \"npm run dev -w @english-learner/ai-service\" \"docker run --rm -p 6379:6379 redis\"",
     "build": "turbo run build"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "turbo": "^2.10.12"
   },
   "packageManager": "npm@10.8.2"

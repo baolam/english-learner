@@ -49,3 +49,33 @@ model AiChatHistory {
 
   readingMaterial     ReadingMaterial @relation(fields: [readingMaterialId], references: [id], onDelete: Cascade)
 }
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  type      String   @default("SYSTEM") // SYSTEM, REMINDER, UPDATE...
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Schedule {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Todo {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
