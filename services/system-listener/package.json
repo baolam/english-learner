@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "../../.venv/Scripts/python.exe main.py"
+    "dev": "..\\..\\.venv\\Scripts\\python.exe -u main.py"
   }
 }

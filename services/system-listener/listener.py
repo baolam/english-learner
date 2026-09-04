@@ -37,22 +37,22 @@ class SystemListener:
         self.last_copied_text = ""
 
     def _default_screenshot_cb(self, data: bytes):
-        print(f"[SystemListener] Đã chụp màn hình. Kích thước: {len(data)} bytes")
+        print(f"[SystemListener] Screenshot captured. Size: {len(data)} bytes")
 
     def _default_audio_cb(self, data: bytes):
-        print(f"[SystemListener] Đã thu âm xong tổng quát. Kích thước: {len(data)} bytes")
+        print(f"[SystemListener] General audio recording finished. Size: {len(data)} bytes")
 
     def _default_audio_stream_cb(self, data: bytes):
         pass # Stream data silently by default
 
     def _default_audio_end_cb(self):
-        print(f"[SystemListener] Đã kết thúc stream âm thanh.")
+        print(f"[SystemListener] Audio stream ended.")
 
     def _default_text_cb(self, text: str):
-        print(f"[SystemListener] Đã copy đoạn text dài: {len(text)} ký tự")
+        print(f"[SystemListener] Copied text length: {len(text)} ký tự")
         
     def _default_error_cb(self, error: str):
-        print(f"[SystemListener Lỗi] {error}")
+        print(f"[SystemListener Error] {error}")
 
     def _wait_for_clipboard_text(self):
         """Chờ hệ điều hành copy xong rồi lấy dữ liệu Text"""
@@ -70,7 +70,7 @@ class SystemListener:
                     self.last_copied_text = copied_text
                     self.on_text_captured(copied_text)
                 else:
-                    print("[SystemListener] Bỏ qua: Text vừa copy trùng với text trước đó.")
+                    print("[SystemListener] Skipped: Copied text is identical to the previous one.")
         except Exception as e:
             # Lỗi thường xảy ra nếu dữ liệu copy không phải là text (file, hình ảnh nhị phân...)
             pass
@@ -82,7 +82,7 @@ class SystemListener:
     def _wait_for_clipboard_image(self):
         """Luồng chờ đợi người dùng kéo chuột cắt ảnh qua Windows Snipping Tool"""
         try:
-            print("\n[SystemListener] Đã mở Snipping Tool. Đang chờ bạn kéo vùng chọn...")
+            print("\n[SystemListener] Snipping Tool opened. Waiting for selection...")
             
             initial_img = ImageGrab.grabclipboard()
             initial_hash = None
@@ -104,10 +104,10 @@ class SystemListener:
                         img_byte_arr.seek(0)
                         
                         self.on_screenshot_captured(img_byte_arr.read())
-                        print("[SystemListener] Bắt được ảnh từ Snipping Tool thành công!")
+                        print("[SystemListener] Successfully captured image from Snipping Tool!")
                         return
                         
-            print("[SystemListener] Đã huỷ chờ: Hết 30 giây mà không thấy cắt ảnh.")
+            print("[SystemListener] Wait cancelled: No screenshot taken within 30 seconds.")
         except Exception as e:
             self.on_error(f"Lỗi khi xử lý Snipping Tool: {e}")
         finally:
@@ -136,7 +136,7 @@ class SystemListener:
             with mic.recorder(samplerate=44100) as recorder:
                 while self.is_recording:
                     if time.time() - start_time >= MAX_DURATION:
-                        print("\n[SystemListener] Đã đạt giới hạn 1 phút ghi âm. Tự động dừng!")
+                        print("\n[SystemListener] Reached 1-minute recording limit. Auto-stopping!")
                         self.is_recording = False
                         break
                         
@@ -146,28 +146,29 @@ class SystemListener:
                     # Lưu lại frame để tạo file tổng lúc cuối
                     self.audio_frames.append(data)
                     
-                    # Chuyển đổi numpy array float32 sang int16
-                    int_data = (data * 32767).astype(np.int16)
-                    
-                    # Chuyển đổi numpy array thành bytes và gửi luôn qua WebSocket
-                    self.on_audio_stream_chunk(int_data.tobytes())
-                    
-            # Báo hiệu kết thúc ghi âm cho WebSocket và nhận về text
-            text_result = self.on_audio_stream_end() or ""
-            
-            # Khôi phục cơ chế tạo file tổng cuối
+            # Xử lý đoạn âm thanh tổng sau khi kết thúc
+            text_result = ""
             if self.audio_frames:
                 audio_data = np.concatenate(self.audio_frames, axis=0)
                 mem_file = io.BytesIO()
                 sf.write(mem_file, audio_data, 44100, format='WAV', subtype='PCM_16')
                 mem_file.seek(0)
+                wav_bytes = mem_file.read()
                 
-                # Gọi callback để gửi file tổng VÀ text nhận được
                 try:
-                    self.on_audio_captured(mem_file.read(), text_result)
+                    print("\n[SystemListener] Đang gửi toàn bộ audio lên AI Server để dịch...")
+                    import main
+                    text_result = main.handle_audio_transcribe_chunk(wav_bytes)
+                    if text_result:
+                        print(f"[SystemListener] Lấy được text: {text_result}")
+                except Exception as e:
+                    print(f"[SystemListener Error] Lỗi khi lấy text: {e}")
+                
+                # Gọi callback để gửi file tổng VÀ text nhận được lên backend
+                try:
+                    self.on_audio_captured(wav_bytes, text_result)
                 except TypeError:
-                    # Nếu callback cũ không nhận tham số thứ 2
-                    self.on_audio_captured(mem_file.read())
+                    self.on_audio_captured(wav_bytes)
                 
         except Exception as e:
             self.is_recording = False
@@ -177,10 +178,10 @@ class SystemListener:
         if not self.is_recording:
             self.audio_thread = threading.Thread(target=self._audio_record_task)
             self.audio_thread.start()
-            print("\n[SystemListener] Đang ghi âm (Streaming)... Bấm lại phím tắt để dừng.")
+            print("\n[SystemListener] Recording (Streaming)... Press hotkey again to stop.")
         else:
             self.is_recording = False
-            print("\n[SystemListener] Đang kết thúc ghi âm...")
+            print("\n[SystemListener] Finishing recording...")
 
     def start(self, block=True):
         keyboard.add_hotkey(self.screenshot_hotkey, self.take_screenshot)
@@ -188,11 +189,11 @@ class SystemListener:
         keyboard.add_hotkey(self.text_hotkey, self.capture_text)
         
         print(f"=====================================")
-        print(f"[SystemListener] Đã khởi động!")
-        print(f" - Phím chụp ảnh: {self.screenshot_hotkey}")
-        print(f" - Phím thu âm:  {self.audio_hotkey}")
-        print(f" - Phím gửi text (từ clipboard): {self.text_hotkey}")
-        print(f" - Bấm 'esc' để thoát hoàn toàn.")
+        print(f"[SystemListener] Started!")
+        print(f" - Screenshot hotkey: {self.screenshot_hotkey}")
+        print(f" - Recording hotkey:  {self.audio_hotkey}")
+        print(f" - Send text hotkey (from clipboard): {self.text_hotkey}")
+        print(f" - Press 'esc' to fully exit.")
         print(f"=====================================")
         
         if block:

@@ -1,3 +1,9 @@
+import sys
+import io
+
+# We will just ensure print has flush=True where needed, or let Python handle it natively with -u
+# Removed sys.stdout override which may interfere with multi-threading stdout buffering under Turbo.
+
 import requests
 import time
 import os
@@ -5,9 +11,13 @@ import json
 import threading
 import websocket
 from listener import SystemListener
+from dotenv import load_dotenv
 
-WEBHOOK_BASE_URL = "http://localhost:3000/input"
-WS_WHISPER_URL = "ws://localhost:8000/api/whisper/stream"
+# Load biến môi trường từ file .env
+load_dotenv()
+
+WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "http://127.0.0.1:3000")
+WS_WHISPER_URL = os.getenv("WS_WHISPER_URL", "ws://localhost:3000/api/whisper/stream")
 
 # Đường dẫn thư mục temp nằm cùng cấp với file main.py
 TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp")
@@ -15,22 +25,12 @@ TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp")
 # Tự động tạo thư mục temp nếu chưa có
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Khởi tạo WebSocket toàn cục cho streaming audio
-ws_client = None
+AI_WHISPER_URL = os.getenv("AI_WHISPER_URL", "http://localhost:8000/api/whisper")
 
-def get_or_create_ws():
-    global ws_client
-    if ws_client is None or not ws_client.connected:
-        try:
-            ws_client = websocket.WebSocket()
-            ws_client.connect(WS_WHISPER_URL)
-            # Thông báo cho server biết dạng data là PCM
-            ws_client.send(json.dumps({"format": "pcm", "channels": 2, "samplerate": 44100}))
-            print("[WebSocket] Đã kết nối tới Whisper Stream (PCM)")
-        except Exception as e:
-            print(f"[WebSocket Lỗi] Không thể kết nối: {e}")
-            ws_client = None
-    return ws_client
+def debug_log(msg):
+    with open(os.path.join(TEMP_DIR, "debug.log"), "a", encoding="utf-8") as f:
+        f.write(msg + "\n")
+    print(msg)
 
 def handle_screenshot(image_bytes):
     """Callback xử lý khi có ảnh mới từ Snipping Tool"""
@@ -41,10 +41,10 @@ def handle_screenshot(image_bytes):
     with open(file_path, "wb") as f:
         f.write(image_bytes)
         
-    print(f"[Callback] Đã lưu ảnh tạm (ghi đè) tại: {file_path}")
-    print(f"[Callback] Kích thước: {len(image_bytes)} bytes. Đang gửi Webhook...")
+    debug_log(f"[Callback] Saved temporary image (overwrite) at: {file_path}")
+    debug_log(f"[Callback] Size: {len(image_bytes)} bytes. Sending Webhook...")
     
-    send_webhook(image_bytes, file_name, "screen")
+    send_webhook(image_bytes, file_name, "input/screen")
 
 def handle_audio(audio_bytes, text_result=""):
     """Callback xử lý khi có file audio hoàn chỉnh để gửi lên Management Server"""
@@ -55,50 +55,30 @@ def handle_audio(audio_bytes, text_result=""):
     with open(file_path, "wb") as f:
         f.write(audio_bytes)
         
-    print(f"[Callback] Đã lưu file audio tổng tại: {file_path}")
-    print(f"[Callback] Kích thước: {len(audio_bytes)} bytes. Đang gửi Webhook (Management)...")
+    debug_log(f"[Callback] Saved final audio file at: {file_path}")
+    debug_log(f"[Callback] Size: {len(audio_bytes)} bytes. Sending Webhook (Management)...")
     
     extra_data = {'text': text_result} if text_result else {}
-    send_webhook(audio_bytes, file_name, "sound", extra_data=extra_data)
+    send_webhook(audio_bytes, file_name, "input/sound", extra_data=extra_data)
+
+def handle_audio_transcribe_chunk(audio_bytes):
+    """Gửi chunk 10s qua HTTP POST thay vì stream"""
+    try:
+        files = {'file': ('chunk.wav', audio_bytes, 'audio/wav')}
+        res = requests.post(AI_WHISPER_URL, files=files)
+        if res.status_code == 200:
+            return res.json().get("text", "")
+        else:
+            debug_log(f"[Whisper API Error] Status: {res.status_code} - {res.text}")
+    except Exception as e:
+        debug_log(f"[Whisper API Error] Exception: {e}")
+    return ""
 
 def handle_audio_stream_chunk(audio_bytes):
-    """Callback xử lý khi có chunk audio mới (Streaming)"""
-    ws = get_or_create_ws()
-    if ws:
-        try:
-            # Gửi chunk nhị phân PCM lên server
-            ws.send_binary(audio_bytes)
-        except Exception as e:
-            print(f"[WebSocket Lỗi] Gửi chunk thất bại: {e}")
+    pass
 
 def handle_audio_stream_end():
-    """Callback xử lý khi kết thúc thu âm, trả về text dịch được"""
-    global ws_client
-    ws = get_or_create_ws()
-    text_result = ""
-    if ws:
-        try:
-            # Gửi lệnh TRANSCRIBE
-            print("[WebSocket] Đã gửi lệnh TRANSCRIBE, đang chờ kết quả...")
-            ws.send(json.dumps({"text": "TRANSCRIBE"}))
-            
-            # Chờ nhận kết quả từ Server
-            response = ws.recv()
-            print(f"[AI Service Phản hồi] {response}")
-            
-            try:
-                data = json.loads(response)
-                if "text" in data:
-                    text_result = data["text"]
-            except:
-                pass
-                
-        except Exception as e:
-            print(f"[WebSocket Lỗi] {e}")
-        finally:
-            ws.close()
-            ws_client = None
-    return text_result
+    return ""
 
 def handle_text(text: str):
     """Callback xử lý khi có text mới gửi (Ctrl+E)"""
@@ -110,15 +90,15 @@ def handle_text(text: str):
     with open(file_path, "wb") as f:
         f.write(text_bytes)
         
-    print(f"[Callback] Đã lưu text tạm (ghi đè) tại: {file_path}")
-    print(f"[Callback] Kích thước: {len(text_bytes)} bytes. Đang gửi Webhook...")
+    debug_log(f"[Callback] Saved temporary text (overwrite) at: {file_path}")
+    debug_log(f"[Callback] Size: {len(text_bytes)} bytes. Sending Webhook...")
     
     # Bắn Webhook lên /input/text
-    send_webhook(text_bytes, file_name, "text")
+    send_webhook(text_bytes, file_name, "input/text")
 
 def handle_error(error_msg):
     """Callback xử lý lỗi"""
-    print(f"[Lỗi Hệ Thống] {error_msg}")
+    debug_log(f"[System Error] {error_msg}")
 
 def send_webhook(file_bytes, file_name, endpoint_path, extra_data=None):
     """Hàm bắn webhook động dựa vào endpoint_path"""
@@ -141,11 +121,36 @@ def send_webhook(file_bytes, file_name, endpoint_path, extra_data=None):
             data.update(extra_data)
             
         response = requests.post(url, files=files, data=data)
-        print(f"[Webhook] Bắn thành công lên {url} - Status: {response.status_code}")
+        debug_log(f"[Webhook] Successfully sent to {url} - Status: {response.status_code}")
+        try:
+            debug_log(f"[Webhook] Server Response: {response.json()}")
+        except:
+            debug_log(f"[Webhook] Server Response: {response.text}")
     except Exception as e:
-        print(f"[Webhook Lỗi] Không thể gửi dữ liệu lên {url}. Chi tiết: {e}")
+        debug_log(f"[Webhook Error] Failed to send data to {url}. Details: {e}")
 
 if __name__ == "__main__":
+    # Start a background thread to listen to Backend WebSocket for final AI results
+    def result_listener():
+        while True:
+            try:
+                ws_results = websocket.WebSocket()
+                ws_results.connect("ws://localhost:3000/")
+                print("[SystemListener] Connected to Backend WebSocket for results.")
+                while True:
+                    msg = ws_results.recv()
+                    try:
+                        data = json.loads(msg)
+                        if "type" in data and "payload" in data:
+                            msg_type = data["type"]
+                            text = data["payload"].get("text", "")
+                    except Exception as e:
+                        pass
+            except Exception as e:
+                time.sleep(3)
+
+    threading.Thread(target=result_listener, daemon=True).start()
+
     # Cấu hình phím tắt và nhúng callback
     config = {
         'screenshot_hotkey': 'windows+shift+s',  # Phím kích hoạt Snipping Tool của Windows
@@ -160,5 +165,8 @@ if __name__ == "__main__":
     }
     
     # Khởi tạo và chạy Listener
-    listener = SystemListener(config)
-    listener.start(block=True)
+    try:
+        listener = SystemListener(config)
+        listener.start(block=True)
+    except KeyboardInterrupt:
+        print("\n[System] Stopping gracefully...")

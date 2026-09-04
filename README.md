@@ -2,6 +2,8 @@
 
 LingoAnki is an English learning application that integrates with AI (Google Generative AI) and Anki to help users improve their vocabulary and reading skills. This repository contains the complete source code for the project, structured as a monorepo.
 
+> **Note:** This project is designed as a personal tool serving a single user.
+
 ## 🏗️ Project Structure
 
 The project is divided into several workspaces:

@@ -13,14 +13,14 @@ class LlamaService:
         
         self._ensure_model_downloaded()
         
-        print("Loading Llama 3.2 1B into memory...")
+        print("Loading Llama model with llama-cpp-python...")
         self.llm = Llama(
             model_path=self.model_path,
-            n_gpu_layers=-1, 
-            n_ctx=2048, 
-            verbose=False
+            n_ctx=2048,
+            n_gpu_layers=0, # Use CPU only
+            verbose=True
         )
-        print("Model loaded successfully!")
+        print("Llama 3.2 1B Service initialized (GPU Mode).")
 
     def _ensure_model_downloaded(self):
         os.makedirs(self.model_dir, exist_ok=True)
@@ -34,17 +34,20 @@ class LlamaService:
             print("Download complete!")
 
     def generate_response(self, user_prompt: str) -> str:
-        messages = [
-            {"role": "system", "content": "You are a helpful, smart, and concise AI assistant. You only answer in English."},
-            {"role": "user", "content": user_prompt}
-        ]
+        prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a helpful, smart, and concise AI assistant. You only answer in English.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
         
-        response = self.llm.create_chat_completion(
-            messages=messages,
-            max_tokens=512,
-            temperature=0.7,
-        )
-        return response['choices'][0]['message']['content']
+        try:
+            output = self.llm(
+                prompt,
+                max_tokens=512,
+                temperature=0.7,
+                stop=["<|eot_id|>"],
+                echo=False
+            )
+            answer = output["choices"][0]["text"].strip()
+            return answer
+        except Exception as e:
+            return f"[Lỗi Llama-cpp] Không thể chạy AI: {e}"
 
 if __name__ == "__main__":
     ai_service = LlamaService()

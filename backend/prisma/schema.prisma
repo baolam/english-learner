@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// Models for LingoAnki (Single User Setup)
+// -------------------------------------------------------------
+
+model ReadingMaterial {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  sourceUrl  String?
+  status     String   @default("UNREAD") // UNREAD, READING, COMPLETED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  words      SavedWord[]
+  chats      AiChatHistory[]
+}
+
+model SavedWord {
+  id                  String   @id @default(uuid())
+  readingMaterialId   String?
+  word                String
+  contextSentence     String?
+  aiExplanation       String?  // JSON stringified data
+  ankiSyncStatus      String   @default("PENDING") // PENDING, SYNCED, FAILED
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  readingMaterial     ReadingMaterial? @relation(fields: [readingMaterialId], references: [id], onDelete: Cascade)
+}
+
+model AiChatHistory {
+  id                  String   @id @default(uuid())
+  readingMaterialId   String
+  role                String   // USER, ASSISTANT
+  message             String
+  createdAt           DateTime @default(now())
+
+  readingMaterial     ReadingMaterial @relation(fields: [readingMaterialId], references: [id], onDelete: Cascade)
+}

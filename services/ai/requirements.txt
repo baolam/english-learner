@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 openai-whisper
 torch
@@ -7,3 +7,5 @@ pydantic
 llama-cpp-python
 huggingface_hub
 winsdk
+redis 
+websockets

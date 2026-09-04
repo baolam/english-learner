@@ -6,3 +6,4 @@ soundfile
 numpy
 pyperclip
 Pillow
+python-dotenv  

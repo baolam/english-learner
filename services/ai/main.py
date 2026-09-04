@@ -1,25 +1,50 @@
+import sys
+import io
+
+# Fix unicode print on Windows cmd AND ensure it flushes immediately (line_buffering=True)
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+
 import os
 import tempfile
 import shutil
 import asyncio
+import json
+import base64
+import redis.asyncio as redis
 from fastapi import FastAPI, File, UploadFile, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 from winsdk.windows.media.ocr import OcrEngine
 from winsdk.windows.globalization import Language
 from winsdk.windows.graphics.imaging import BitmapDecoder
 from winsdk.windows.storage import StorageFile, FileAccessMode
+from llm_service import LlamaService
 import whisper
 from pydantic import BaseModel
 import torch
-from llm_service import LlamaService
+from dotenv import load_dotenv
 
-app = FastAPI(title="AI Service API", description="API for OCR and Whisper with Streaming")
+load_dotenv()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(redis_ocr_worker())
+    yield
+
+app = FastAPI(title="AI Service API", description="API for OCR and Whisper with Streaming", lifespan=lifespan)
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = redis.from_url(REDIS_URL)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 
 print("Loading Llama model...")
-llama_service = LlamaService()
+try:
+    llama_service = LlamaService()
+except Exception as e:
+    print(f"[WARNING] Cannot load Llama model (C++/CUDA error): {e}")
+    llama_service = None
 
 async def run_windows_ocr(image_path: str, lang_code: str = 'en-US'):
     abs_path = os.path.abspath(image_path)
@@ -105,12 +130,15 @@ async def whisper_stream(websocket: WebSocket):
             # Nhận dữ liệu từ client (Frontend/App)
             message = await websocket.receive()
             
+            if message.get("type") == "websocket.disconnect":
+                break
+                
             # Nếu client gửi luồng nhị phân (Binary Audio Chunks từ Microphone)
-            if "bytes" in message:
+            if message.get("bytes") is not None:
                 audio_buffer.extend(message["bytes"])
                 
             # Nếu client gửi text command
-            elif "text" in message:
+            elif message.get("text") is not None:
                 text_data = message["text"]
                 try:
                     # Kiểm tra xem có phải JSON config không
@@ -119,7 +147,7 @@ async def whisper_stream(websocket: WebSocket):
                         current_format = config["format"]
                         channels = config.get("channels", 2)
                         samplerate = config.get("samplerate", 44100)
-                        print(f"Đã cập nhật format audio thành: {current_format}")
+                        print(f"Updated audio format to: {current_format}")
                         continue
                         
                     # Lệnh TRANSCRIBE nằm trong JSON
@@ -129,6 +157,9 @@ async def whisper_stream(websocket: WebSocket):
                     
                 if command == "TRANSCRIBE" and len(audio_buffer) > 0:
                     tmp_path = None
+                    # Copy and clear buffer immediately so we don't lose new chunks while transcribing
+                    current_audio = bytearray(audio_buffer)
+                    audio_buffer.clear()
                     try:
                         if current_format == "pcm":
                             # Lưu thành file WAV bằng module wave có sẵn
@@ -138,11 +169,11 @@ async def whisper_stream(websocket: WebSocket):
                                 wf.setnchannels(channels)
                                 wf.setsampwidth(2) # 16-bit = 2 bytes
                                 wf.setframerate(samplerate)
-                                wf.writeframes(audio_buffer)
+                                wf.writeframes(current_audio)
                         else:
                             # Mặc định là WebM từ Web
                             with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
-                                tmp.write(audio_buffer)
+                                tmp.write(current_audio)
                                 tmp_path = tmp.name
                         
                         # Dùng asyncio.to_thread để tránh block kết nối của các user khác
@@ -153,11 +184,9 @@ async def whisper_stream(websocket: WebSocket):
                     finally:
                         if tmp_path and os.path.exists(tmp_path):
                             os.remove(tmp_path)
-                        # Xóa bộ đệm để bắt đầu thu câu nói tiếp theo
-                        audio_buffer.clear()
                         
     except WebSocketDisconnect:
-        print("Client đã ngắt kết nối WebSocket")
+        print("Client disconnected from WebSocket")
 
 # ---------------------------------------------------------
 # 3. LLM CHAT API
@@ -167,12 +196,67 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def process_chat(req: ChatRequest):
+    if llama_service is None:
+        raise HTTPException(status_code=500, detail="Llama model failed to load during startup.")
     try:
         # Sử dụng asyncio.to_thread để tránh block event loop
         response = await asyncio.to_thread(llama_service.generate_response, req.prompt)
         return {"response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+async def redis_ocr_worker():
+    print("[Redis Worker] Started listening to 'ocr_tasks'...")
+    while True:
+        try:
+            # blpop blocks until an item is available
+            result = await redis_client.blpop("ocr_tasks", timeout=0)
+            if result:
+                queue_name, message = result
+                data = json.loads(message)
+                
+                task_id = data.get("task_id")
+                image_base64 = data.get("image_base64")
+                
+                print(f"[Redis Worker] Processing task {task_id}")
+                
+                if image_base64:
+                    image_bytes = base64.b64decode(image_base64)
+                    
+                    tmp_path = None
+                    try:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                            tmp.write(image_bytes)
+                            tmp_path = tmp.name
+                            
+                        text = await run_windows_ocr(tmp_path, lang_code='en-US')
+                        
+                        # Push result back to ai_results queue
+                        result_payload = {
+                            "task_id": task_id,
+                            "type": "screen",
+                            "result_text": text,
+                            "status": "success"
+                        }
+                        await redis_client.publish("ai_results", json.dumps(result_payload))
+                        print(f"[Redis Worker] Task {task_id} completed successfully. Result: {text}")
+                        
+                    except Exception as e:
+                        print(f"[Redis Worker] Error processing task {task_id}: {e}")
+                        error_payload = {
+                            "task_id": task_id,
+                            "type": "screen",
+                            "error": str(e),
+                            "status": "error"
+                        }
+                        await redis_client.publish("ai_results", json.dumps(error_payload))
+                    finally:
+                        if tmp_path and os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                            
+        except Exception as e:
+            print(f"[Redis Worker] Error in worker loop: {e}")
+            await asyncio.sleep(1)
 
 if __name__ == "__main__":
     import uvicorn
