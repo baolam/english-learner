@@ -115,29 +115,60 @@ export const listMedia = (type: 'screenshots' | 'audio') => {
 export const deleteMedia = (type: 'screenshots' | 'audio') => {
   return async (req: Request, res: Response): Promise<void> => {
     try {
-      const { filename } = req.params;
+      const rawFilename = req.params.filename;
+      const decodedFilename = decodeURIComponent(rawFilename);
+      const safeFilename = path.basename(decodedFilename);
       const dirPath = getDir(type);
-      const filePath = path.join(dirPath, filename);
+      const filePath = path.resolve(dirPath, safeFilename);
 
-      const exists = await fs.promises.access(filePath).then(() => true).catch(() => false);
-      if (!exists) {
-        res.status(404).json({ error: 'File not found' });
-        return;
+      console.log(`[Media Controller] Deleting ${type} file: ${safeFilename} at ${filePath}`);
+
+      // Attempt physical file deletion from disk
+      let fileDeleted = false;
+      try {
+        if (fs.existsSync(filePath)) {
+          await fs.promises.unlink(filePath);
+          fileDeleted = true;
+          console.log(`[Media Controller] Physical file deleted from disk: ${filePath}`);
+        } else {
+          console.warn(`[Media Controller] Physical file not found on disk: ${filePath}, proceeding with DB deletion.`);
+        }
+      } catch (fileErr) {
+        const fErr = fileErr as Error;
+        console.error(`[Media Controller] Could not delete physical file ${filePath}:`, fErr.message);
       }
 
-      await fs.promises.unlink(filePath);
-
+      // Delete DB records matching filename
+      let deletedDbCount = 0;
       if (type === 'screenshots') {
-        await prisma.screenshot.deleteMany({
-          where: { filename }
+        const result = await prisma.screenshot.deleteMany({
+          where: {
+            OR: [
+              { filename: safeFilename },
+              { filename: rawFilename }
+            ]
+          }
         });
+        deletedDbCount = result.count;
       } else if (type === 'audio') {
-        await prisma.audioRecord.deleteMany({
-          where: { filename }
+        const result = await prisma.audioRecord.deleteMany({
+          where: {
+            OR: [
+              { filename: safeFilename },
+              { filename: rawFilename }
+            ]
+          }
         });
+        deletedDbCount = result.count;
       }
 
-      res.status(200).json({ message: 'File deleted successfully' });
+      console.log(`[Media Controller] Deleted ${deletedDbCount} database record(s) for ${safeFilename}`);
+
+      res.status(200).json({
+        message: 'File and database record deleted successfully',
+        fileDeleted,
+        dbRecordsDeleted: deletedDbCount
+      });
     } catch (error) {
       const err = error as Error;
       console.error(`[Media Controller] Error deleting ${type}:`, err.message);

@@ -3,49 +3,26 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import { createServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import inputRoutes from './features/input/input.routes';
-import mediaRoutes from './features/media/media.routes';
-import ankiRoutes from './features/anki/anki.routes';
-import notificationRoutes from './features/notifications/notification.routes';
-import scheduleRoutes from './features/schedules/schedule.routes';
-import todoRoutes from './features/todos/todo.routes';
-import subjectRoutes from './features/subjects/subject.routes';
-import documentRoutes from './features/documents/document.routes';
-import termRoutes from './features/terms/term.routes';
-import chatRoutes from './features/chat/chat.routes';
-import flashcardRoutes from './features/flashcards/flashcard.routes';
-import settingRoutes from './features/settings/setting.routes';
+import { WebSocketServer } from 'ws';
+import fs from 'fs';
+import appRouter from './routes';
+import { initWhisperWebSocket } from './sockets/whisper.socket';
 import { initRedisSubscriber } from './utils/redis';
 import { startScheduleCron } from './utils/cron/schedule.cron';
-import fs from 'fs';
-import path from 'path';
+import { errorHandler } from './middlewares/error.middleware';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Standard Middlewares
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// LingoAnki Routes
-app.use('/input', inputRoutes);
-app.use('/media', mediaRoutes);
-app.use('/anki', ankiRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/schedules', scheduleRoutes);
-app.use('/api/todos', todoRoutes);
-app.use('/api/subjects', subjectRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/terms', termRoutes);
-app.use('/api/chat/sessions', chatRoutes);
-app.use('/api/flashcards', flashcardRoutes);
-app.use('/api/settings', settingRoutes);
-
-// Serve static files
+// Serve static upload files
 const screenshotsDir = process.env.SCREENSHOTS_UPLOAD_DIR || './uploads/screenshots';
 const audioDir = process.env.AUDIO_UPLOAD_DIR || './uploads/audio';
 
@@ -55,83 +32,28 @@ if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
 app.use('/media/screenshots', express.static(screenshotsDir));
 app.use('/media/audio', express.static(audioDir));
 
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'LingoAnki Backend API' });
 });
 
-import { setWss } from './utils/websocket';
-import { addSSEClient } from './utils/sse';
+// Mount All Application & Feature Routes
+app.use('/', appRouter);
 
-app.get('/api/stream', (req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive'
-  });
-  res.write('\n'); // keep-alive
-  addSSEClient(res);
-});
-
-import axios from 'axios';
-
-app.post('/api/chat', async (req, res) => {
-  try {
-    // Forward the chat request to AI Service (running on 8000)
-    // AI Service will process and push stream to Redis, which SSE will broadcast
-    const aiRes = await axios.post('http://localhost:8000/api/chat/stream', req.body, { responseType: 'stream' });
-    aiRes.data.pipe(res);
-  } catch (error) {
-    console.error('Error proxying chat to AI service:', error);
-    res.status(500).json({ error: 'Failed to contact AI service' });
-  }
-});
+// Centralized Global Error Handler Middleware
+app.use(errorHandler);
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Setup Global WebSocket broadcast helper
-setWss(wss);
+// Initialize WebSocket Proxy & Helper
+initWhisperWebSocket(wss);
 
-const AI_WS_URL = process.env.AI_WS_URL || 'ws://localhost:8000/api/whisper/stream';
-
-wss.on('connection', (ws: WebSocket, req) => {
-  if (req.url === '/api/whisper/stream') {
-    console.log('[WebSocket Proxy] Relaying audio stream to AI Service');
-    const aiWs = new WebSocket(AI_WS_URL);
-    
-    aiWs.on('open', () => {
-      ws.on('message', (message, isBinary) => {
-        if (aiWs.readyState === WebSocket.OPEN) {
-          aiWs.send(message, { binary: isBinary });
-        }
-      });
-      
-      aiWs.on('message', (message, isBinary) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(message, { binary: isBinary });
-        }
-      });
-    });
-
-    ws.on('close', () => aiWs.close());
-    aiWs.on('close', () => ws.close());
-    aiWs.on('error', (err) => console.error('[WebSocket Proxy] AI WS Error:', err));
-    return;
-  }
-
-  console.log('[WebSocket] Frontend client connected');
-  ws.on('close', () => {
-    console.log('[WebSocket] Frontend client disconnected');
-  });
-});
-
-// Khởi tạo Redis Subscriber
+// Initialize Redis Subscriber & Background Scheduler
 initRedisSubscriber();
-
-// Khởi chạy cron job lịch học
 startScheduleCron();
 
 server.listen(PORT, () => {
   console.log(`[Server] LingoAnki Backend is running on http://localhost:${PORT}`);
-  console.log(`[WebSocket] Server listening on ws://localhost:${PORT}/ws`);
+  console.log(`[WebSocket] Server listening on ws://localhost:${PORT}`);
 });

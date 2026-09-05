@@ -7,5 +7,6 @@ pydantic
 llama-cpp-python
 huggingface_hub
 winsdk
-redis 
+redis
 websockets
+nltk

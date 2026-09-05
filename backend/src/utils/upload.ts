@@ -6,11 +6,12 @@ export const getDir = (type: 'screenshots' | 'audio') => {
   const envKey = type === 'screenshots' ? 'SCREENSHOTS_UPLOAD_DIR' : 'AUDIO_UPLOAD_DIR';
   const defaultDir = `./uploads/${type}`;
   const dirPath = process.env[envKey] || defaultDir;
+  const resolvedDir = path.resolve(dirPath);
   
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  if (!fs.existsSync(resolvedDir)) {
+    fs.mkdirSync(resolvedDir, { recursive: true });
   }
-  return dirPath;
+  return resolvedDir;
 };
 
 export const diskStorage = (type: 'screenshots' | 'audio') => multer.diskStorage({
