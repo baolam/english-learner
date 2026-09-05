@@ -38,9 +38,23 @@ export const initRedisSubscriber = () => {
         
         // Broadcast the result to the frontend
         if (data.type === 'screen') {
+            import('./prisma').then(({ prisma }) => {
+                prisma.screenshot.upsert({
+                    where: { filename: data.task_id },
+                    update: { extractedText: data.result_text },
+                    create: { filename: data.task_id, extractedText: data.result_text }
+                }).catch((err: any) => console.error('[Redis] DB update error:', err));
+            });
             broadcastToFrontend('screen_result', { text: data.result_text });
             broadcastSSE('screen_result', { text: data.result_text });
         } else if (data.type === 'sound') {
+            import('./prisma').then(({ prisma }) => {
+                prisma.audioRecord.upsert({
+                    where: { filename: data.task_id },
+                    update: { extractedText: data.result_text },
+                    create: { filename: data.task_id, extractedText: data.result_text }
+                }).catch((err: any) => console.error('[Redis] DB update error (sound):', err));
+            });
             broadcastToFrontend('sound_result', { text: data.result_text });
             broadcastSSE('sound_result', { text: data.result_text });
         } else if (data.type === 'text') {

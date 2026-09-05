@@ -12,11 +12,11 @@ export const getAllTodos = async (req: Request, res: Response) => {
 
 export const createTodo = async (req: Request, res: Response) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, scheduleId, parentId } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
-    const todo = await todoService.createTodo({ title, description });
+    const todo = await todoService.createTodo({ title, description, scheduleId, parentId });
     res.status(201).json(todo);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -26,8 +26,8 @@ export const createTodo = async (req: Request, res: Response) => {
 export const updateTodo = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, isCompleted } = req.body;
-    const todo = await todoService.updateTodo(id, { title, description, isCompleted });
+    const { title, description, isCompleted, scheduleId, parentId } = req.body;
+    const todo = await todoService.updateTodo(id, { title, description, isCompleted, scheduleId, parentId });
     res.status(200).json(todo);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -13,7 +13,7 @@ export function RightPanel() {
   const [panelWidth, setPanelWidth] = useState(320);
   const isResizing = useRef(false);
 
-  const startResizing = (e: React.MouseEvent) => {
+  const startResizing = () => {
     isResizing.current = true;
     document.addEventListener('mousemove', resize);
     document.addEventListener('mouseup', stopResizing);
@@ -53,14 +53,12 @@ export function RightPanel() {
         const data = JSON.parse(event.data);
         const textPayload = typeof data.payload === 'string' ? data.payload : (data.payload?.text || '');
         
-        if (data.type === 'ai_stream_chunk' || data.type === 'ai_response' || data.type === 'stream') {
-          setStreamData(prev => prev + textPayload);
-        } else if (data.type === 'clipboard_stream') {
+        if (data.type === 'clipboard_stream') {
           setStreamData(prev => prev + data.payload);
         } else if (data.type === 'screen_result' || data.type === 'sound_result' || data.type === 'text_result') {
           setStreamData(prev => prev + '\n[' + data.type + ']: ' + textPayload + '\n');
         }
-      } catch (e) {
+      } catch {
         if (typeof event.data === 'string') {
           setStreamData(prev => prev + event.data);
         }
@@ -130,7 +128,7 @@ export function RightPanel() {
   return (
     <aside 
       style={{ width: `${panelWidth}px` }}
-      className="relative bg-white border-l border-slate-200 flex flex-col h-screen shadow-sm z-10 shrink-0"
+      className="relative bg-white border-l border-slate-200 flex flex-col h-full shadow-sm z-10 shrink-0"
     >
       <div 
         onMouseDown={startResizing}

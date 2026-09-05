@@ -3,6 +3,7 @@ import fs from 'fs';
 import { broadcastToFrontend } from '../../utils/websocket';
 import { broadcastSSE } from '../../utils/sse';
 import { redisPublisher } from '../../utils/redis';
+import { prisma } from '../../utils/prisma';
 
 export const handleScreenUpload = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -17,7 +18,16 @@ export const handleScreenUpload = async (req: Request, res: Response): Promise<v
     // Read from disk asynchronously
     const fileBuffer = await fs.promises.readFile(file.path);
     const base64Image = fileBuffer.toString('base64');
-    const taskId = Date.now().toString();
+    const taskId = file.filename; // Use file.filename as task_id so it matches DB screenshot filename
+
+    // Save to DB
+    await prisma.screenshot.create({
+      data: {
+        filename: file.filename,
+        originalName: file.originalname,
+        extractedText: '',
+      }
+    });
 
     const taskPayload = {
       task_id: taskId,
@@ -47,6 +57,15 @@ export const handleSoundUpload = async (req: Request, res: Response): Promise<vo
     const extractedText = req.body.text || "";
 
     console.log(`[Webhook] Received SOUND webhook. File size: ${file.size} bytes. Text: "${extractedText}"`);
+
+    // Save to DB
+    await prisma.audioRecord.create({
+      data: {
+        filename: file.filename,
+        originalName: file.originalname,
+        extractedText: extractedText,
+      }
+    });
 
     // Broadcast result to frontend
     if (extractedText) {

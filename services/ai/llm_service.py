@@ -41,7 +41,7 @@ class LlamaService:
             output = self.llm(
                 prompt,
                 max_tokens=512,
-                temperature=0.7,
+                temperature=0.1,
                 stop=["<|eot_id|>"],
                 echo=False
             )
@@ -56,7 +56,7 @@ class LlamaService:
             stream = self.llm(
                 prompt,
                 max_tokens=512,
-                temperature=0.7,
+                temperature=0.1,
                 stop=["<|eot_id|>"],
                 echo=False,
                 stream=True

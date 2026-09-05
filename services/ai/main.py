@@ -244,7 +244,6 @@ async def process_chat_stream(req: ChatRequest):
                 chunk = await asyncio.to_thread(q.get)
                 if chunk is None:
                     break
-                await redis_client.publish("ai_stream", json.dumps({"text": chunk}))
                 yield chunk
 
         return StreamingResponse(generate(), media_type="text/plain")

@@ -27,7 +27,7 @@ export default function Home() {
     const fetchData = async () => {
       try {
         const todosRes = await axios.get('http://localhost:3000/api/todos');
-        const mappedTodos = todosRes.data.map((t: any) => ({
+        const mappedTodos = todosRes.data.map((t: { id: string; title: string; isCompleted: boolean }) => ({
           id: t.id,
           title: t.title,
           completed: t.isCompleted
@@ -39,7 +39,7 @@ export default function Home() {
 
       try {
         const schedulesRes = await axios.get('http://localhost:3000/api/schedules');
-        const mappedSchedules = schedulesRes.data.map((s: any) => {
+        const mappedSchedules = schedulesRes.data.map((s: { id: string; title: string; startTime: string; endTime: string }) => {
           const start = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           const end = new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           return {
@@ -92,7 +92,7 @@ export default function Home() {
         {/* Today's Tasks */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2">
           <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center justify-between">
-            <span>Today's Tasks</span>
+            <span>Today&apos;s Tasks</span>
             <span className="text-sm font-normal text-slate-500">{todos.filter(t => t.completed).length}/{todos.length} Done</span>
           </h2>
           <ul className="space-y-3">

@@ -12,3 +12,4 @@ soundfile
 numpy
 pyperclip
 Pillow
+onnxruntime-gpu

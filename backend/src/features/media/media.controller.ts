@@ -5,6 +5,8 @@ import { getDir } from '../../utils/upload';
 import { broadcastToFrontend } from '../../utils/websocket';
 import { redisPublisher } from '../../utils/redis';
 
+import { prisma } from '../../utils/prisma';
+
 export const uploadMedia = (type: 'screenshots' | 'audio') => {
   return async (req: Request, res: Response): Promise<void> => {
     try {
@@ -16,7 +18,7 @@ export const uploadMedia = (type: 'screenshots' | 'audio') => {
       if (type === 'screenshots') {
         const fileBuffer = await fs.promises.readFile(req.file.path);
         const base64Image = fileBuffer.toString('base64');
-        const taskId = Date.now().toString();
+        const taskId = req.file.filename; // Use filename as task_id to easily identify in DB
 
         const taskPayload = {
           task_id: taskId,
@@ -24,10 +26,29 @@ export const uploadMedia = (type: 'screenshots' | 'audio') => {
           image_base64: base64Image
         };
 
+        // Save to DB
+        await prisma.screenshot.create({
+          data: {
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            extractedText: '', // It will be updated later by OCR process
+          }
+        });
+
         await redisPublisher.rpush('ocr_tasks', JSON.stringify(taskPayload));
         console.log(`[Media Webhook] Queued screenshot OCR task: ${taskId}`);
       } else if (type === 'audio') {
         const extractedText = req.body.text || "";
+        
+        // Save to DB
+        await prisma.audioRecord.create({
+          data: {
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            extractedText: extractedText,
+          }
+        });
+
         if (extractedText) {
           broadcastToFrontend('sound_result', { text: extractedText });
         }
@@ -51,9 +72,36 @@ export const listMedia = (type: 'screenshots' | 'audio') => {
     try {
       const dirPath = getDir(type);
       const files = await fs.promises.readdir(dirPath);
-      const fileData = files.map(file => ({
-        filename: file,
-        url: `/media/${type}/${file}`
+      
+      let dbScreenshots: any[] = [];
+      let dbAudios: any[] = [];
+      if (type === 'screenshots') {
+        dbScreenshots = await prisma.screenshot.findMany();
+      } else if (type === 'audio') {
+        dbAudios = await prisma.audioRecord.findMany();
+      }
+
+      const fileData = await Promise.all(files.map(async file => {
+        const filePath = path.join(dirPath, file);
+        const stats = await fs.promises.stat(filePath);
+        
+        let extractedText = undefined;
+        if (type === 'screenshots') {
+          const dbItem = dbScreenshots.find(s => s.filename === file);
+          if (dbItem) extractedText = dbItem.extractedText;
+        } else if (type === 'audio') {
+          const dbItem = dbAudios.find(s => s.filename === file);
+          if (dbItem) extractedText = dbItem.extractedText;
+        }
+
+        return {
+          filename: file,
+          url: `/media/${type}/${file}`,
+          size: stats.size,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime,
+          extractedText
+        };
       }));
       res.status(200).json({ files: fileData });
     } catch (error) {
@@ -78,6 +126,17 @@ export const deleteMedia = (type: 'screenshots' | 'audio') => {
       }
 
       await fs.promises.unlink(filePath);
+
+      if (type === 'screenshots') {
+        await prisma.screenshot.deleteMany({
+          where: { filename }
+        });
+      } else if (type === 'audio') {
+        await prisma.audioRecord.deleteMany({
+          where: { filename }
+        });
+      }
+
       res.status(200).json({ message: 'File deleted successfully' });
     } catch (error) {
       const err = error as Error;

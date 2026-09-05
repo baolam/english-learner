@@ -11,53 +11,138 @@ datasource db {
 }
 
 // -------------------------------------------------------------
-// Models for LingoAnki (Single User Setup)
+// Models for Learning Assistant (Second Brain & English)
 // -------------------------------------------------------------
 
-model ReadingMaterial {
-  id         String   @id @default(uuid())
-  title      String
-  content    String
-  sourceUrl  String?
-  status     String   @default("UNREAD") // UNREAD, READING, COMPLETED
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model Subject {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  parentId    String? // Hierarchy support
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  words      SavedWord[]
-  chats      AiChatHistory[]
+  parent      Subject?   @relation("SubjectToSubject", fields: [parentId], references: [id], onDelete: SetNull)
+  subSubjects Subject[]  @relation("SubjectToSubject")
+  documents   Document[]
 }
 
-model SavedWord {
-  id                  String   @id @default(uuid())
-  readingMaterialId   String?
-  word                String
-  contextSentence     String?
-  aiExplanation       String?  // JSON stringified data
-  ankiSyncStatus      String   @default("PENDING") // PENDING, SYNCED, FAILED
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model Document {
+  id        String  @id @default(uuid())
+  subjectId String?
+  title     String
+  content   String? // Optional since it might just be a local PDF
 
-  readingMaterial     ReadingMaterial? @relation(fields: [readingMaterialId], references: [id], onDelete: Cascade)
+  // Metadata for Papers/Books
+  author        String?
+  publishedYear Int?
+  tags          String? // Comma separated tags
+
+  localPath String? // Path to local file (e.g. PDF, EPUB)
+  sourceUrl String?
+  fileType  String? // PDF, EPUB, URL, TEXT
+
+  status          String  @default("UNREAD") // UNREAD, READING, COMPLETED
+  readingProgress String? // Page number, percentage, or bookmark marker
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject      Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  terms        Term[]
+  highlights   Highlight[]
+  chatSessions ChatSession[]
+}
+
+model Highlight {
+  id         String @id @default(uuid())
+  documentId String
+
+  text         String // Original text highlighted
+  aiParaphrase String? // AI paraphrased version
+  aiSummary    String? // AI summary of the snippet
+  pageNumber   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model Term {
+  id         String @id @default(uuid())
+  termType   String @default("VOCAB") // VOCAB, CONCEPT
+  sourceType String @default("MANUAL") // MANUAL, READING, SCREENSHOT, AUDIO
+
+  documentId    String?
+  screenshotId  String?
+  audioRecordId String?
+
+  term            String
+  contextSentence String?
+  aiExplanation   String? // JSON stringified data
+
+  ankiSyncStatus     String @default("PENDING") // PENDING, SYNCED, FAILED
+  obsidianSyncStatus String @default("PENDING") // PENDING, SYNCED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document    Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  screenshot  Screenshot?  @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
+  audioRecord AudioRecord? @relation(fields: [audioRecordId], references: [id], onDelete: SetNull)
+
+  flashcard Flashcard?
+}
+
+model ChatSession {
+  id    String @id @default(uuid())
+  title String @default("New Chat")
+
+  // Context source
+  sourceType    String  @default("GENERAL") // GENERAL, READING, SCREENSHOT, AUDIO
+  documentId    String?
+  screenshotId  String?
+  audioRecordId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document    Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  screenshot  Screenshot?  @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
+  audioRecord AudioRecord? @relation(fields: [audioRecordId], references: [id], onDelete: SetNull)
+
+  messages AiChatHistory[]
 }
 
 model AiChatHistory {
-  id                  String   @id @default(uuid())
-  readingMaterialId   String
-  role                String   // USER, ASSISTANT
-  message             String
-  createdAt           DateTime @default(now())
+  id            String @id @default(uuid())
+  chatSessionId String
+  role          String // USER, ASSISTANT
+  message       String
 
-  readingMaterial     ReadingMaterial @relation(fields: [readingMaterialId], references: [id], onDelete: Cascade)
+  extractedData String? // JSON string: Extracted data (Flashcard, Grammar points, Concepts...)
+
+  createdAt DateTime @default(now())
+
+  chatSession ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
 }
+
+// -------------------------------------------------------------
+// Models for Productivity & Task Management
+// -------------------------------------------------------------
 
 model Notification {
   id        String   @id @default(uuid())
+  todoId    String?
   title     String
   body      String
   isRead    Boolean  @default(false)
   type      String   @default("SYSTEM") // SYSTEM, REMINDER, UPDATE...
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  todo Todo? @relation(fields: [todoId], references: [id], onDelete: Cascade)
 }
 
 model Schedule {
@@ -69,6 +154,8 @@ model Schedule {
   isCompleted Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  todos Todo[]
 }
 
 model Todo {
@@ -76,6 +163,112 @@ model Todo {
   title       String
   description String?
   isCompleted Boolean  @default(false)
+  scheduleId  String? // Optional: Null if free todo, UUID if attached to event
+  parentId    String? // Optional: Link to a parent System Task
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  schedule Schedule? @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  parent   Todo?     @relation("TodoToTodo", fields: [parentId], references: [id], onDelete: Cascade)
+  subTodos Todo[]    @relation("TodoToTodo")
+
+  notifications Notification[]
+}
+
+// -------------------------------------------------------------
+// Models for Media Input
+// -------------------------------------------------------------
+
+model Screenshot {
+  id            String   @id @default(uuid())
+  filename      String   @unique
+  originalName  String?
+  extractedText String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  terms        Term[]
+  chatSessions ChatSession[]
+}
+
+model AudioRecord {
+  id            String   @id @default(uuid())
+  filename      String   @unique
+  originalName  String?
+  extractedText String?
+  accuracyScore Float? // Score for speaking/shadowing accuracy
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  terms        Term[]
+  chatSessions ChatSession[]
+}
+
+// -------------------------------------------------------------
+// Models for Spaced Repetition (Anki)
+// -------------------------------------------------------------
+
+model Deck {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  flashcards Flashcard[]
+}
+
+model Flashcard {
+  id     String @id @default(uuid())
+  deckId String
+  termId String @unique // Each Term has 1 Flashcard
+
+  // Card content
+  front String
+  back  String
+
+  // SRS Algorithm data (SM-2)
+  interval       Int      @default(0)
+  repetition     Int      @default(0)
+  easeFactor     Float    @default(2.5)
+  nextReviewDate DateTime @default(now())
+
+  // AnkiConnect sync data
+  externalNoteId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
+}
+
+// -------------------------------------------------------------
+// Models for Settings & Integrations
+// -------------------------------------------------------------
+
+model IntegrationSetting {
+  id String @id @default(uuid())
+
+  // Anki Settings
+  defaultDeckName  String  @default("LingoAnki Default")
+  defaultModelName String  @default("Basic")
+  ankiConnectUrl   String  @default("http://127.0.0.1:8765")
+  autoSyncAnki     Boolean @default(false)
+
+  // Obsidian / Local Settings
+  obsidianVaultPath String?
+  autoSyncObsidian  Boolean @default(false)
+
+  // System Listener Settings
+  screenshotHotkey   String  @default("windows+shift+s")
+  audioHotkey        String  @default("ctrl+shift+a")
+  textHotkey         String  @default("ctrl+q")
+  vadEnabled         Boolean @default(true)
+  vadThreshold       Float   @default(0.5)
+  vadSilenceDuration Float   @default(1.2)
+  vadUseGpu          Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

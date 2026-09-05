@@ -10,6 +10,12 @@ import ankiRoutes from './features/anki/anki.routes';
 import notificationRoutes from './features/notifications/notification.routes';
 import scheduleRoutes from './features/schedules/schedule.routes';
 import todoRoutes from './features/todos/todo.routes';
+import subjectRoutes from './features/subjects/subject.routes';
+import documentRoutes from './features/documents/document.routes';
+import termRoutes from './features/terms/term.routes';
+import chatRoutes from './features/chat/chat.routes';
+import flashcardRoutes from './features/flashcards/flashcard.routes';
+import settingRoutes from './features/settings/setting.routes';
 import { initRedisSubscriber } from './utils/redis';
 import { startScheduleCron } from './utils/cron/schedule.cron';
 import fs from 'fs';
@@ -32,6 +38,12 @@ app.use('/anki', ankiRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/todos', todoRoutes);
+app.use('/api/subjects', subjectRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/terms', termRoutes);
+app.use('/api/chat/sessions', chatRoutes);
+app.use('/api/flashcards', flashcardRoutes);
+app.use('/api/settings', settingRoutes);
 
 // Serve static files
 const screenshotsDir = process.env.SCREENSHOTS_UPLOAD_DIR || './uploads/screenshots';

@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../utils/prisma';
 
 export const getAllTodos = async () => {
   return prisma.todo.findMany({
@@ -14,13 +12,13 @@ export const getTodoById = async (id: string) => {
   });
 };
 
-export const createTodo = async (data: { title: string; description?: string }) => {
+export const createTodo = async (data: { title: string; description?: string; scheduleId?: string; parentId?: string }) => {
   return prisma.todo.create({
     data
   });
 };
 
-export const updateTodo = async (id: string, data: { title?: string; description?: string; isCompleted?: boolean }) => {
+export const updateTodo = async (id: string, data: { title?: string; description?: string; isCompleted?: boolean; scheduleId?: string; parentId?: string }) => {
   return prisma.todo.update({
     where: { id },
     data
