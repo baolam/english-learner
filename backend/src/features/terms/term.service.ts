@@ -6,12 +6,19 @@ export interface TermQueryParams {
   documentId?: string;
   screenshotId?: string;
   audioRecordId?: string;
+  sessionId?: string;
   ankiSyncStatus?: string;
   obsidianSyncStatus?: string;
   search?: string;
   page?: number;
   limit?: number;
 }
+
+const parseTagNames = (tagsInput?: string | string[]): string[] => {
+  if (!tagsInput) return [];
+  if (Array.isArray(tagsInput)) return tagsInput.map((t) => t.trim()).filter(Boolean);
+  return tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
+};
 
 export const getAllTerms = async (query: TermQueryParams = {}) => {
   const {
@@ -20,6 +27,7 @@ export const getAllTerms = async (query: TermQueryParams = {}) => {
     documentId,
     screenshotId,
     audioRecordId,
+    sessionId,
     ankiSyncStatus,
     obsidianSyncStatus,
     search,
@@ -33,6 +41,7 @@ export const getAllTerms = async (query: TermQueryParams = {}) => {
   if (documentId) where.documentId = documentId;
   if (screenshotId) where.screenshotId = screenshotId;
   if (audioRecordId) where.audioRecordId = audioRecordId;
+  if (sessionId) where.sessionId = sessionId;
   if (ankiSyncStatus) where.ankiSyncStatus = ankiSyncStatus;
   if (obsidianSyncStatus) where.obsidianSyncStatus = obsidianSyncStatus;
   if (search) {
@@ -53,6 +62,8 @@ export const getAllTerms = async (query: TermQueryParams = {}) => {
         document: { select: { id: true, title: true } },
         screenshot: { select: { id: true, filename: true } },
         audioRecord: { select: { id: true, filename: true } },
+        studySession: { select: { id: true, title: true, category: true } },
+        tags: true,
         flashcard: true
       },
       orderBy: { createdAt: 'desc' },
@@ -77,7 +88,11 @@ export const getTermById = async (id: string) => {
       document: true,
       screenshot: true,
       audioRecord: true,
-      flashcard: true
+      studySession: true,
+      tags: true,
+      flashcard: true,
+      outgoing: { include: { targetTerm: true } },
+      incoming: { include: { sourceTerm: true } }
     }
   });
 };
@@ -89,13 +104,30 @@ export const createTerm = async (data: {
   documentId?: string;
   screenshotId?: string;
   audioRecordId?: string;
+  sessionId?: string;
   contextSentence?: string;
   aiExplanation?: string;
   ankiSyncStatus?: string;
   obsidianSyncStatus?: string;
+  tags?: string | string[];
 }) => {
+  const { tags, ...restData } = data;
+  const tagNames = parseTagNames(tags);
+
   return prisma.term.create({
-    data
+    data: {
+      ...restData,
+      tags: tagNames.length > 0 ? {
+        connectOrCreate: tagNames.map((name) => ({
+          where: { name },
+          create: { name }
+        }))
+      } : undefined
+    },
+    include: {
+      tags: true,
+      studySession: true
+    }
   });
 };
 
@@ -108,15 +140,35 @@ export const updateTerm = async (
     documentId: string | null;
     screenshotId: string | null;
     audioRecordId: string | null;
+    sessionId: string | null;
     contextSentence: string;
     aiExplanation: string;
     ankiSyncStatus: string;
     obsidianSyncStatus: string;
+    tags: string | string[];
   }>
 ) => {
+  const { tags, ...restData } = data;
+  const updateData: any = { ...restData };
+
+  if (tags !== undefined) {
+    const tagNames = parseTagNames(tags);
+    updateData.tags = {
+      set: [],
+      connectOrCreate: tagNames.map((name) => ({
+        where: { name },
+        create: { name }
+      }))
+    };
+  }
+
   return prisma.term.update({
     where: { id },
-    data
+    data: updateData,
+    include: {
+      tags: true,
+      studySession: true
+    }
   });
 };
 

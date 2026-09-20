@@ -1,6 +1,6 @@
 'use client';
 
-import { Headphones, Upload, Search, Filter, PlayCircle, Mic, Trash2, ExternalLink, X, Info } from 'lucide-react';
+import { Headphones, Upload, Search, PlayCircle, Trash2, ExternalLink, X, Info, FolderKanban, Clock } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
@@ -11,6 +11,9 @@ interface AudioRecord {
   createdAt?: string;
   modifiedAt?: string;
   extractedText?: string;
+  duration?: number;
+  sessionId?: string;
+  studySession?: { id: string; title: string };
 }
 
 export default function AudiosPage() {
@@ -70,7 +73,7 @@ export default function AudiosPage() {
   const handleDelete = async (filename: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!confirm('Are you sure you want to delete this audio?')) return;
-    
+
     try {
       await axios.delete(`http://localhost:3000/media/audio/${filename}`);
       setAudios(prev => prev.filter(a => a.filename !== filename));
@@ -83,8 +86,9 @@ export default function AudiosPage() {
     }
   };
 
-  const filteredAudios = audios.filter(a => 
-    a.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAudios = audios.filter(a =>
+    a.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.extractedText && a.extractedText.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const formatBytes = (bytes?: number) => {
@@ -111,22 +115,15 @@ export default function AudiosPage() {
           <p className="text-slate-500 mt-1">Manage your recordings and listening materials.</p>
         </div>
         <div className="flex gap-3">
-          <button 
-            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition font-medium shadow-sm"
-          >
-            <Mic size={20} className="text-red-500" />
-            Record
-          </button>
-          
-          <input 
-            type="file" 
+          <input
+            type="file"
             accept="audio/*"
-            className="hidden" 
+            className="hidden"
             ref={fileInputRef}
             onChange={handleFileChange}
           />
-          
-          <button 
+
+          <button
             onClick={handleUploadClick}
             disabled={isUploading}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm disabled:opacity-50"
@@ -140,18 +137,14 @@ export default function AudiosPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6 flex gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search audios..." 
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <input
+            type="text"
+            placeholder="Search audios by filename or transcript..."
+            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition">
-          <Filter size={20} />
-          Filter
-        </button>
       </div>
 
       {isLoading ? (
@@ -171,16 +164,16 @@ export default function AudiosPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAudios.map((audio) => (
-            <div 
-              key={audio.filename} 
-              className="group bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
+            <div
+              key={audio.filename}
+              className="group bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between"
               onClick={() => setSelectedAudio(audio)}
             >
               <div className="h-32 bg-slate-100 flex items-center justify-center relative">
                 <PlayCircle size={48} className="text-blue-500 opacity-70 group-hover:opacity-100 transition" />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
-                  <a 
-                    href={`http://localhost:3000${audio.url}`} 
+                  <a
+                    href={`http://localhost:3000${audio.url}`}
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 transition"
@@ -189,7 +182,7 @@ export default function AudiosPage() {
                   >
                     <ExternalLink size={20} />
                   </a>
-                  <button 
+                  <button
                     onClick={(e) => handleDelete(audio.filename, e)}
                     className="p-2 bg-red-500/80 text-white rounded-full hover:bg-red-600 transition"
                     title="Delete"
@@ -198,13 +191,29 @@ export default function AudiosPage() {
                   </button>
                 </div>
               </div>
+
               <div className="p-3 border-t border-slate-100">
                 <p className="text-sm font-medium text-slate-700 truncate" title={audio.filename}>
                   {audio.filename}
                 </p>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs text-slate-400">{formatBytes(audio.size)}</span>
-                  <span className="text-xs text-slate-400">{formatDate(audio.createdAt).split(' ')[1]}</span>
+
+                {audio.duration && (
+                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                    <Clock size={12} /> Duration: {audio.duration.toFixed(1)}s
+                  </p>
+                )}
+
+                {audio.studySession && (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                      <FolderKanban size={10} /> {audio.studySession.title}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400">
+                  <span>{formatBytes(audio.size)}</span>
+                  <span>{formatDate(audio.createdAt).split(' ')[1]}</span>
                 </div>
               </div>
             </div>
@@ -215,8 +224,8 @@ export default function AudiosPage() {
       {/* Metadata Modal */}
       {selectedAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8" onClick={() => setSelectedAudio(null)}>
-          <div 
-            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full flex flex-col overflow-hidden" 
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-5 border-b border-slate-100">
@@ -228,81 +237,69 @@ export default function AudiosPage() {
                 <X size={24} />
               </button>
             </div>
-            
-            <div className="p-6 overflow-y-auto">
-              <div className="mb-6 flex justify-center">
-                <audio 
-                  controls 
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="flex justify-center">
+                <audio
+                  controls
                   src={`http://localhost:3000${selectedAudio.url}`}
                   className="w-full max-w-md"
                   autoPlay
                 />
               </div>
 
-              <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-medium text-slate-500 mb-1">Filename</h3>
+                <p className="text-slate-800 break-all bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
+                  {selectedAudio.filename}
+                </p>
+              </div>
+
+              {selectedAudio.studySession && (
                 <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Filename</h3>
-                  <p className="text-slate-800 break-all bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    {selectedAudio.filename}
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Linked Study Session</h3>
+                  <p className="text-slate-800 bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm flex items-center gap-2 text-blue-900 font-medium">
+                    <FolderKanban size={16} className="text-blue-600 flex-shrink-0" />
+                    {selectedAudio.studySession.title}
                   </p>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-500 mb-1">File Size</h3>
-                    <p className="text-slate-800">{formatBytes(selectedAudio.size)}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-500 mb-1">Type</h3>
-                    <p className="text-slate-800 uppercase">{selectedAudio.filename.split('.').pop() || 'Unknown'}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-500 mb-1">Created At</h3>
-                    <p className="text-slate-800">{formatDate(selectedAudio.createdAt)}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-500 mb-1">Last Modified</h3>
-                    <p className="text-slate-800">{formatDate(selectedAudio.modifiedAt)}</p>
-                  </div>
-                </div>
+              )}
 
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Direct URL</h3>
-                  <div className="flex gap-2 mt-1">
-                    <input 
-                      type="text" 
-                      readOnly 
-                      value={`http://localhost:3000${selectedAudio.url}`}
-                      className="flex-1 text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-2 outline-none"
-                    />
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(`http://localhost:3000${selectedAudio.url}`);
-                      }}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-md transition text-sm font-medium"
-                    >
-                      Copy
-                    </button>
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">File Size</h3>
+                  <p className="text-slate-800 text-sm">{formatBytes(selectedAudio.size)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Duration</h3>
+                  <p className="text-slate-800 text-sm">{selectedAudio.duration ? `${selectedAudio.duration.toFixed(1)} seconds` : 'N/A'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Captured At</h3>
+                  <p className="text-slate-800 text-sm">{formatDate(selectedAudio.createdAt)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Type</h3>
+                  <p className="text-slate-800 uppercase text-sm">{selectedAudio.filename.split('.').pop() || 'Unknown'}</p>
+                </div>
+              </div>
+
+              {selectedAudio.extractedText && (
+                <div className="pt-2">
+                  <h3 className="text-sm font-medium text-slate-500 mb-1">Transcribed Text (STT)</h3>
+                  <div className="bg-slate-50 border border-slate-200 rounded-md p-3 max-h-48 overflow-y-auto">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                      {selectedAudio.extractedText}
+                    </p>
                   </div>
                 </div>
-
-                {selectedAudio.extractedText && (
-                  <div className="pt-2">
-                    <h3 className="text-sm font-medium text-slate-500 mb-1">Transcribed Text (STT)</h3>
-                    <div className="bg-slate-50 border border-slate-200 rounded-md p-3 max-h-48 overflow-y-auto">
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                        {selectedAudio.extractedText}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-            
+
             <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <button 
+              <button
                 onClick={(e) => handleDelete(selectedAudio.filename, e as unknown as React.MouseEvent)}
-                className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition font-medium flex items-center gap-2"
+                className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition font-medium flex items-center gap-2 text-sm"
               >
                 <Trash2 size={18} />
                 Delete

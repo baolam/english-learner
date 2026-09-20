@@ -36,9 +36,9 @@ Dưới đây là danh sách các User Story được đúc kết, phân loại 
 ---
 
 ## 4. Luyện Tập Kỹ Năng Tiếng Anh (English Skills as By-product)
-*(Liên quan đến `AudioRecord` `accuracyScore`, `Term` `contextSentence` & `services/ai` Whisper STT)*
+*(Liên quan đến `AudioRecord`, `Term` `contextSentence` & `services/ai` Whisper STT)*
 
-* **US12:** Với vai trò là **người học**, tôi muốn ghi âm giọng nói qua phím tắt **`Ctrl + Shift + A`** (tự động ngắt thu âm với Silero VAD) khi đọc to một đoạn trích trong sách/paper và để hệ thống nhận diện (Whisper AI Engine) tính điểm chính xác (`accuracyScore`) để tôi có thể luyện kỹ năng Phát âm (Speaking/Shadowing).
+* **US12:** Với vai trò là **người học**, tôi muốn thu âm thanh loa/hệ thống qua phím tắt **`Ctrl + Shift + A`** (tự động ngắt thu âm với Silero VAD) và để hệ thống nhận diện (Whisper AI Engine) trích xuất văn bản từ âm thanh.
 * **US13:** Với vai trò là **người học**, tôi muốn lưu lại một từ vựng mới cùng với nguyên câu chứa từ đó (`contextSentence`) từ Paper đang đọc để học được cách dùng từ đúng văn cảnh học thuật.
 * **US14:** Với vai trò là **người học**, tôi muốn Trợ lý AI tự động tạo ra giải nghĩa tiếng Anh-Tiếng Anh và ví dụ ứng dụng (`aiExplanation`) cho thuật ngữ tôi vừa lưu để hiểu bản chất từ vựng thay vì chỉ dịch word-by-word.
 

@@ -10,15 +10,18 @@ from app.schemas.ai import (
     GrammarParsePayload,
     FlashcardPayload,
     ExtractTermsPayload,
-    SummarizePayload
+    SummarizePayload,
+    SetModelPayload
 )
 from app.core.llama import LlamaService
 from app.core.nltk_parser import NLTKGrammarParser
+from app.core.fast_algorithms import FastAIProcessor
 
 router = APIRouter(tags=["AI Services"])
 
 print("Loading NLTK Grammar Parser...")
 nltk_parser = NLTKGrammarParser()
+fast_processor = FastAIProcessor(nltk_parser)
 
 print("Loading Llama model...")
 try:
@@ -27,14 +30,33 @@ except Exception as e:
     print(f"[WARNING] Cannot load Llama model: {e}")
     llama_service = None
 
+@router.get("/api/ai/model-info")
+async def get_model_info_endpoint():
+    if llama_service is None:
+        raise HTTPException(status_code=500, detail="Llama service is unavailable.")
+    return llama_service.get_model_info()
+
+@router.post("/api/ai/set-model")
+async def set_model_endpoint(payload: SetModelPayload):
+    if llama_service is None:
+        raise HTTPException(status_code=500, detail="Llama service is unavailable.")
+    try:
+        res = await asyncio.to_thread(llama_service.switch_model, payload.model_size)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/chat")
 async def process_chat(req: ChatRequest):
+    prompt = req.get_effective_prompt()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Missing chat prompt or message.")
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama model is unavailable.")
     try:
         def sync_stream():
             res = ""
-            for chunk in llama_service.generate_stream(req.prompt):
+            for chunk in llama_service.generate_stream(prompt, history=req.history):
                 res += chunk
             return res
             
@@ -45,6 +67,9 @@ async def process_chat(req: ChatRequest):
 
 @router.post("/api/chat/stream")
 async def process_chat_stream(req: ChatRequest):
+    prompt = req.get_effective_prompt()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Missing chat prompt or message.")
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama model is unavailable.")
     try:
@@ -52,7 +77,7 @@ async def process_chat_stream(req: ChatRequest):
         
         def run_stream():
             try:
-                for chunk in llama_service.generate_stream(req.prompt):
+                for chunk in llama_service.generate_stream(prompt, history=req.history):
                     q.put(chunk)
             finally:
                 q.put(None)
@@ -73,6 +98,10 @@ async def process_chat_stream(req: ChatRequest):
 
 @router.post("/api/ai/term-explain")
 async def explain_term_endpoint(payload: TermExplainPayload):
+    is_fast = payload.fast or payload.fast_mode or payload.fast_first
+    if is_fast:
+        return fast_processor.fast_explain_term(payload.term, payload.context_sentence)
+
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama service is unavailable.")
     try:
@@ -83,6 +112,10 @@ async def explain_term_endpoint(payload: TermExplainPayload):
 
 @router.post("/api/ai/grammar-parse")
 async def grammar_parse_endpoint(payload: GrammarParsePayload):
+    is_fast = payload.fast or payload.fast_mode or payload.fast_first
+    if is_fast:
+        return fast_processor.fast_grammar_parse(payload.sentence)
+
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama service is unavailable.")
     try:
@@ -94,6 +127,10 @@ async def grammar_parse_endpoint(payload: GrammarParsePayload):
 
 @router.post("/api/ai/flashcard-generate")
 async def flashcard_endpoint(payload: FlashcardPayload):
+    is_fast = payload.fast or payload.fast_mode or payload.fast_first
+    if is_fast:
+        return fast_processor.fast_generate_flashcard(payload.term, payload.context_sentence, payload.definition)
+
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama service is unavailable.")
     try:
@@ -104,6 +141,10 @@ async def flashcard_endpoint(payload: FlashcardPayload):
 
 @router.post("/api/ai/extract-terms")
 async def extract_terms_endpoint(payload: ExtractTermsPayload):
+    is_fast = payload.fast or payload.fast_mode or payload.fast_first
+    if is_fast:
+        return fast_processor.fast_extract_terms(payload.text)
+
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama service is unavailable.")
     try:
@@ -114,6 +155,10 @@ async def extract_terms_endpoint(payload: ExtractTermsPayload):
 
 @router.post("/api/ai/summarize-paraphrase")
 async def summarize_endpoint(payload: SummarizePayload):
+    is_fast = payload.fast or payload.fast_mode or payload.fast_first
+    if is_fast:
+        return fast_processor.fast_summarize_paraphrase(payload.text)
+
     if llama_service is None:
         raise HTTPException(status_code=500, detail="Llama service is unavailable.")
     try:
@@ -121,3 +166,5 @@ async def summarize_endpoint(payload: SummarizePayload):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+

@@ -1,7 +1,7 @@
 import { prisma } from '../../utils/prisma';
 
 export class ScheduleService {
-  static async createSchedule(data: { title: string; description?: string; startTime: Date; endTime: Date }) {
+  static async createSchedule(data: { title: string; description?: string; icon?: string; coverImage?: string; widgets?: string; startTime: Date; endTime: Date }) {
     return prisma.schedule.create({
       data: {
         ...data,
@@ -13,7 +13,19 @@ export class ScheduleService {
 
   static async getSchedules() {
     return prisma.schedule.findMany({
-      orderBy: { startTime: 'asc' }
+      orderBy: { startTime: 'asc' },
+      include: {
+        todos: true
+      }
+    });
+  }
+
+  static async getScheduleById(id: string) {
+    return prisma.schedule.findUnique({
+      where: { id },
+      include: {
+        todos: true
+      }
     });
   }
 
@@ -23,7 +35,10 @@ export class ScheduleService {
     
     return prisma.schedule.update({
       where: { id },
-      data
+      data,
+      include: {
+        todos: true
+      }
     });
   }
 

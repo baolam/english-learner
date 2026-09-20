@@ -11,7 +11,7 @@ datasource db {
 }
 
 // -------------------------------------------------------------
-// Models for Learning Assistant (Second Brain & English)
+// Models for Learning Assistant & Second Brain
 // -------------------------------------------------------------
 
 model Subject {
@@ -25,33 +25,50 @@ model Subject {
   parent      Subject?   @relation("SubjectToSubject", fields: [parentId], references: [id], onDelete: SetNull)
   subSubjects Subject[]  @relation("SubjectToSubject")
   documents   Document[]
+
+  @@index([parentId])
+}
+
+model Tag {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  documents     Document[]
+  studySessions StudySession[]
+  terms         Term[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Document {
-  id        String  @id @default(uuid())
-  subjectId String?
-  title     String
-  content   String? // Optional since it might just be a local PDF
+  id             String  @id @default(uuid())
+  subjectId      String?
+  studySessionId String?
+  title          String
+  content        String? // Optional since it might just be a local PDF
 
   // Metadata for Papers/Books
   author        String?
   publishedYear Int?
-  tags          String? // Comma separated tags
+  tags          Tag[]
 
   localPath String? // Path to local file (e.g. PDF, EPUB)
   sourceUrl String?
-  fileType  String? // PDF, EPUB, URL, TEXT
+  fileType  String? // FileType: PDF, EPUB, URL, TEXT
 
-  status          String  @default("UNREAD") // UNREAD, READING, COMPLETED
+  status          String  @default("UNREAD") // DocumentStatus: UNREAD, READING, COMPLETED
   readingProgress String? // Page number, percentage, or bookmark marker
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   subject      Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  studySession StudySession? @relation(fields: [studySessionId], references: [id], onDelete: SetNull)
   terms        Term[]
   highlights   Highlight[]
   chatSessions ChatSession[]
+
+  @@index([subjectId])
+  @@index([studySessionId])
 }
 
 model Highlight {
@@ -67,65 +84,119 @@ model Highlight {
   updatedAt DateTime @updatedAt
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+model StudySession {
+  id        String    @id @default(uuid())
+  title     String    @default("Untitled Session")
+  category  String    @default("GENERAL") // StudyCategory: GENERAL, MEETING, LECTURE, RESEARCH, ENGLISH, CODING
+  status    String    @default("ACTIVE") // StudyStatus: ACTIVE, PAUSED, COMPLETED, ARCHIVED
+  aiSummary String?
+  tags      Tag[]
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  screenshots      Screenshot[]
+  audioRecords     AudioRecord[]
+  conceptRelations ConceptRelation[]
+  terms            Term[]
+  chatSessions     ChatSession[]
+  documents        Document[]
 }
 
 model Term {
-  id         String @id @default(uuid())
-  termType   String @default("VOCAB") // VOCAB, CONCEPT
-  sourceType String @default("MANUAL") // MANUAL, READING, SCREENSHOT, AUDIO
-
+  id            String  @id @default(uuid())
+  termType      String  @default("VOCAB") // TermType: VOCAB, CONCEPT
+  sourceType    String  @default("MANUAL") // SourceType: MANUAL, READING, SCREENSHOT, AUDIO
   documentId    String?
   screenshotId  String?
   audioRecordId String?
+  sessionId     String?
 
   term            String
   contextSentence String?
-  aiExplanation   String? // JSON stringified data
+  aiExplanation   String? // JSON stringified data (TermAiExplanation)
 
-  ankiSyncStatus     String @default("PENDING") // PENDING, SYNCED, FAILED
-  obsidianSyncStatus String @default("PENDING") // PENDING, SYNCED
+  ankiSyncStatus     String @default("PENDING") // AnkiSyncStatus: PENDING, SYNCED, FAILED
+  obsidianSyncStatus String @default("PENDING") // ObsidianSyncStatus: PENDING, SYNCED
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  document    Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  screenshot  Screenshot?  @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
-  audioRecord AudioRecord? @relation(fields: [audioRecordId], references: [id], onDelete: SetNull)
+  document     Document?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  screenshot   Screenshot?      @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
+  audioRecord  AudioRecord?     @relation(fields: [audioRecordId], references: [id], onDelete: SetNull)
+  studySession StudySession?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  tags         Tag[]
+  flashcard    Flashcard?
+  outgoing     ConceptRelation[] @relation("SourceConcept")
+  incoming     ConceptRelation[] @relation("TargetConcept")
 
-  flashcard Flashcard?
+  @@index([documentId])
+  @@index([screenshotId])
+  @@index([audioRecordId])
+  @@index([sessionId])
+}
+
+model ConceptRelation {
+  id           String @id @default(uuid())
+  sessionId    String
+  sourceTermId String
+  targetTermId String
+  relationType String @default("RELATED_TO") // RelationType: RELATED_TO, CONTAINS, LEADS_TO, DEPENDS_ON, USES
+
+  session    StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sourceTerm Term         @relation("SourceConcept", fields: [sourceTermId], references: [id], onDelete: Cascade)
+  targetTerm Term         @relation("TargetConcept", fields: [targetTermId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, sourceTermId, targetTermId, relationType])
+  @@index([sessionId])
+  @@index([sourceTermId])
+  @@index([targetTermId])
 }
 
 model ChatSession {
-  id    String @id @default(uuid())
-  title String @default("New Chat")
-
-  // Context source
-  sourceType    String  @default("GENERAL") // GENERAL, READING, SCREENSHOT, AUDIO
+  id            String  @id @default(uuid())
+  title         String  @default("New Chat")
+  sourceType    String  @default("GENERAL") // ChatSourceType: GENERAL, READING, SCREENSHOT, AUDIO
   documentId    String?
   screenshotId  String?
   audioRecordId String?
+  sessionId     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  document    Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  screenshot  Screenshot?  @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
-  audioRecord AudioRecord? @relation(fields: [audioRecordId], references: [id], onDelete: SetNull)
+  document     Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  screenshot   Screenshot?   @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
+  audioRecord  AudioRecord?  @relation(fields: [audioRecordId], references: [id], onDelete: SetNull)
+  studySession StudySession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   messages AiChatHistory[]
+
+  @@index([documentId])
+  @@index([screenshotId])
+  @@index([audioRecordId])
+  @@index([sessionId])
 }
 
 model AiChatHistory {
   id            String @id @default(uuid())
   chatSessionId String
-  role          String // USER, ASSISTANT
+  role          String // ChatRole: USER, ASSISTANT
   message       String
 
-  extractedData String? // JSON string: Extracted data (Flashcard, Grammar points, Concepts...)
+  extractedData String? // JSON stringified data (ExtractedChatData)
 
   createdAt DateTime @default(now())
 
   chatSession ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId])
 }
 
 // -------------------------------------------------------------
@@ -138,17 +209,22 @@ model Notification {
   title     String
   body      String
   isRead    Boolean  @default(false)
-  type      String   @default("SYSTEM") // SYSTEM, REMINDER, UPDATE...
+  type      String   @default("SYSTEM") // NotificationType: SYSTEM, REMINDER, UPDATE
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   todo Todo? @relation(fields: [todoId], references: [id], onDelete: Cascade)
+
+  @@index([todoId])
 }
 
 model Schedule {
   id          String   @id @default(uuid())
   title       String
   description String?
+  icon        String?
+  coverImage  String?
+  widgets     String?  // JSON stringified array of custom widgets
   startTime   DateTime
   endTime     DateTime
   isCompleted Boolean  @default(false)
@@ -168,11 +244,14 @@ model Todo {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  schedule Schedule? @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  schedule Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   parent   Todo?     @relation("TodoToTodo", fields: [parentId], references: [id], onDelete: Cascade)
   subTodos Todo[]    @relation("TodoToTodo")
 
   notifications Notification[]
+
+  @@index([scheduleId])
+  @@index([parentId])
 }
 
 // -------------------------------------------------------------
@@ -184,11 +263,18 @@ model Screenshot {
   filename      String   @unique
   originalName  String?
   extractedText String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  windowTitle   String? // Active window title when captured
+  capturedAt    DateTime @default(now())
+  sessionId     String?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studySession StudySession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   terms        Term[]
   chatSessions ChatSession[]
+
+  @@index([sessionId])
 }
 
 model AudioRecord {
@@ -196,12 +282,18 @@ model AudioRecord {
   filename      String   @unique
   originalName  String?
   extractedText String?
-  accuracyScore Float? // Score for speaking/shadowing accuracy
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  duration      Float? // System audio duration (seconds)
+  capturedAt    DateTime @default(now())
+  sessionId     String?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studySession StudySession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   terms        Term[]
   chatSessions ChatSession[]
+
+  @@index([sessionId])
 }
 
 // -------------------------------------------------------------
@@ -241,6 +333,8 @@ model Flashcard {
 
   deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
   term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([deckId])
 }
 
 // -------------------------------------------------------------
@@ -248,7 +342,7 @@ model Flashcard {
 // -------------------------------------------------------------
 
 model IntegrationSetting {
-  id String @id @default(uuid())
+  id String @id @default("default")
 
   // Anki Settings
   defaultDeckName  String  @default("LingoAnki Default")
@@ -269,6 +363,16 @@ model IntegrationSetting {
   vadSilenceDuration Float   @default(1.2)
   vadUseGpu          Boolean @default(true)
 
+  // Marquee Banner Settings
+  marqueeText      String  @default("🔥 QUYẾT TÂM!!!!! • Có tiền ít thì từ thiện ít, nhiều thì từ thiện nhiều nha!!! • Học cái hiểu biết nhiều để biết ơn • Lấy tham thiền làm niềm vui • English learner! (chuẩn bị về các cơ chế management và cách thu âm) • Bản vẽ • PHẢI OBSERVATION NHIỀU HƠN NỮA!!!!! • PHẢI BIẾT LƯỢNG SỨC MÌNH!!!")
+  marqueeEnabled   Boolean @default(true)
+  marqueeSpeed     Float   @default(1.0)
+  marqueeDirection String  @default("left")
+
+  // Gemini API Settings
+  geminiApiKey     String?
+
   createdAt DateTime @default(now())
+
   updatedAt DateTime @updatedAt
 }

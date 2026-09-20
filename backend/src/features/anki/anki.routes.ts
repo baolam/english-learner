@@ -3,19 +3,102 @@ import { AnkiController } from './anki.controller';
 
 const router = Router();
 
-// 1. Lấy ra thẻ nội dung
+/**
+ * @openapi
+ * /anki/cards-info:
+ *   post:
+ *     summary: Retrieve detailed Anki card information by array of card IDs
+ *     tags: [Anki]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [cards]
+ *             properties:
+ *               cards:
+ *                 type: array
+ *                 items:
+ *                   type: number
+ *     responses:
+ *       200:
+ *         description: Card info returned successfully
+ *       400:
+ *         description: Cards must be an array of IDs
+ */
 router.post('/cards-info', AnkiController.getCardsInfo);
 
-// 2. Lấy ra deck
+/**
+ * @openapi
+ * /anki/decks:
+ *   get:
+ *     summary: Get list of all Anki deck names
+ *     tags: [Anki]
+ *     responses:
+ *       200:
+ *         description: List of deck names
+ */
 router.get('/decks', AnkiController.getDecks);
 
-// 3. Lấy trạng thái từ
+/**
+ * @openapi
+ * /anki/word-status:
+ *   get:
+ *     summary: Check status of a specific word in Anki
+ *     tags: [Anki]
+ *     parameters:
+ *       - in: query
+ *         name: word
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Word status info
+ *       400:
+ *         description: Word parameter required
+ */
 router.get('/word-status', AnkiController.getWordStatus);
 
-// 4. Lấy kho các từ cần học theo deck
+/**
+ * @openapi
+ * /anki/learn:
+ *   get:
+ *     summary: Get cards to learn for a specific deck
+ *     tags: [Anki]
+ *     parameters:
+ *       - in: query
+ *         name: deck
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Cards to learn
+ *       400:
+ *         description: Deck parameter required
+ */
 router.get('/learn', AnkiController.getCardsToLearn);
 
-// 5. Lấy kho các từ cần ôn lại theo deck
+/**
+ * @openapi
+ * /anki/review:
+ *   get:
+ *     summary: Get cards to review for a specific deck
+ *     tags: [Anki]
+ *     parameters:
+ *       - in: query
+ *         name: deck
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Cards to review
+ *       400:
+ *         description: Deck parameter required
+ */
 router.get('/review', AnkiController.getCardsToReview);
 
 export default router;

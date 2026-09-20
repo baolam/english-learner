@@ -10,6 +10,19 @@ export const getSchedules = async (req: Request, res: Response) => {
   }
 };
 
+export const getScheduleById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const schedule = await ScheduleService.getScheduleById(id);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    res.json(schedule);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch schedule details' });
+  }
+};
+
 export const createSchedule = async (req: Request, res: Response) => {
   try {
     const schedule = await ScheduleService.createSchedule(req.body);

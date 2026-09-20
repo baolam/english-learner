@@ -3,20 +3,49 @@ import json
 import re
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+
+MODEL_CONFIGS = {
+    "1b": {
+        "repo_id": "lmstudio-community/Llama-3.2-1B-Instruct-GGUF",
+        "filename": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        "approx_size": "800MB"
+    },
+    "3b": {
+        "repo_id": "lmstudio-community/Llama-3.2-3B-Instruct-GGUF",
+        "filename": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        "approx_size": "2.0GB"
+    }
+}
 
 class LlamaService:
-    def __init__(self):
-        self.repo_id = "lmstudio-community/Llama-3.2-1B-Instruct-GGUF"
-        self.filename = "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+    def __init__(self, model_size: str = "1b"):
+        self.model_size = model_size.lower() if model_size.lower() in MODEL_CONFIGS else "1b"
         
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.model_dir = os.path.join(base_dir, "models")
+        self.llm = None
+        
+        self.load_model(self.model_size)
+
+    def load_model(self, model_size: str):
+        target_size = model_size.lower()
+        if target_size not in MODEL_CONFIGS:
+            target_size = "1b"
+            
+        config = MODEL_CONFIGS[target_size]
+        self.model_size = target_size
+        self.repo_id = config["repo_id"]
+        self.filename = config["filename"]
         self.model_path = os.path.join(self.model_dir, self.filename)
         
         self._ensure_model_downloaded()
         
-        print("Loading Llama model with llama-cpp-python...")
+        print(f"Loading Llama {self.model_size.upper()} model ({self.filename}) with llama-cpp-python...")
+        if self.llm is not None:
+            del self.llm
+            self.llm = None
+
         self.llm = Llama(
             model_path=self.model_path,
             n_ctx=2048,
@@ -24,12 +53,34 @@ class LlamaService:
             n_gpu_layers=0, # CPU Mode
             verbose=False
         )
-        print("Llama 3.2 1B Service initialized.")
+        print(f"Llama 3.2 {self.model_size.upper()} Service initialized.")
+
+    def switch_model(self, model_size: str) -> Dict[str, Any]:
+        """Dynamically switch between 1b and 3b models."""
+        target_size = model_size.lower()
+        if target_size not in MODEL_CONFIGS:
+            return {"status": "error", "message": f"Unsupported model size '{model_size}'. Supported: '1b', '3b'"}
+        
+        if target_size == self.model_size and self.llm is not None:
+            return {"status": "success", "message": f"Model is already set to {self.model_size.upper()}", "current_model": self.model_size}
+        
+        self.load_model(target_size)
+        return {"status": "success", "message": f"Switched to Llama 3.2 {self.model_size.upper()} model", "current_model": self.model_size}
+
+    def get_model_info(self) -> Dict[str, Any]:
+        return {
+            "current_model": self.model_size,
+            "filename": self.filename,
+            "model_path": self.model_path,
+            "available_models": list(MODEL_CONFIGS.keys()),
+            "loaded": self.llm is not None
+        }
 
     def _ensure_model_downloaded(self):
         os.makedirs(self.model_dir, exist_ok=True)
         if not os.path.exists(self.model_path):
-            print(f"Downloading model {self.filename} to {self.model_dir} (Approx 800MB)...")
+            approx_size = MODEL_CONFIGS[self.model_size]["approx_size"]
+            print(f"Downloading model {self.filename} to {self.model_dir} (Approx {approx_size})...")
             hf_hub_download(
                 repo_id=self.repo_id,
                 filename=self.filename,
@@ -37,8 +88,28 @@ class LlamaService:
             )
             print("Download complete!")
 
-    def generate_response(self, user_prompt: str, system_prompt: str = "You are a helpful AI assistant. You answer strictly in English.") -> str:
-        prompt = f"<|start_header_id|>system<|end_header_id|>\n\n{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    def _format_chat_prompt(self, user_prompt: str, system_prompt: str = "You are a helpful AI assistant. You answer strictly in English.", history: Optional[List[Dict[str, Any]]] = None) -> str:
+        """Formats multi-turn chat history into Llama 3 header tokens."""
+        prompt_parts = [f"<|start_header_id|>system<|end_header_id|>\n\n{system_prompt}<|eot_id|>"]
+        
+        if history:
+            for msg in history:
+                role = msg.get("role", "user").lower()
+                content = msg.get("content") or msg.get("message") or msg.get("text") or ""
+                if content:
+                    if role in ("user", "human"):
+                        prompt_parts.append(f"<|start_header_id|>user<|end_header_id|>\n\n{content}<|eot_id|>")
+                    elif role in ("assistant", "ai", "bot"):
+                        prompt_parts.append(f"<|start_header_id|>assistant<|end_header_id|>\n\n{content}<|eot_id|>")
+
+        if user_prompt:
+            prompt_parts.append(f"<|start_header_id|>user<|end_header_id|>\n\n{user_prompt}<|eot_id|>")
+            
+        prompt_parts.append("<|start_header_id|>assistant<|end_header_id|>\n\n")
+        return "".join(prompt_parts)
+
+    def generate_response(self, user_prompt: str, system_prompt: str = "You are a helpful AI assistant. You answer strictly in English.", history: Optional[List[Dict[str, Any]]] = None) -> str:
+        prompt = self._format_chat_prompt(user_prompt, system_prompt, history)
         
         try:
             output = self.llm(
@@ -53,9 +124,9 @@ class LlamaService:
         except Exception as e:
             return f"[Llama-cpp Error] {e}"
 
-    def generate_stream(self, user_prompt: str):
+    def generate_stream(self, user_prompt: str, history: Optional[List[Dict[str, Any]]] = None):
         system_prompt = "You are a helpful AI assistant. You answer strictly in English."
-        prompt = f"<|start_header_id|>system<|end_header_id|>\n\n{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        prompt = self._format_chat_prompt(user_prompt, system_prompt, history)
         try:
             stream = self.llm(
                 prompt,
@@ -70,6 +141,7 @@ class LlamaService:
                 yield text
         except Exception as e:
             yield f"[Llama-cpp Stream Error] {e}"
+
 
     def clean_json_output(self, raw_text: str) -> Dict[str, Any]:
         """Cleans markdown wrappers, trailing commas, and parses JSON response safely."""

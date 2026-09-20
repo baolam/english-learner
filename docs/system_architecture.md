@@ -90,7 +90,7 @@ graph TD
 * **Công nghệ:** Python, FastAPI, Uvicorn, Asyncio, PyTorch, OpenAI Whisper, NLTK, Redis Worker.
 * **Chi tiết tính năng:**
   * **Redis OCR Worker (`redis_ocr_worker`):** Chạy nhiệm vụ nền lắng nghe danh sách `ocr_tasks` trong Redis, nhận dữ liệu ảnh Base64 từ Backend, thực hiện trích xuất chữ OCR và cập nhật kết quả `extractedText` vào cơ sở dữ liệu SQLite qua Backend API.
-  * **Whisper Transcribe Service:** Tiếp nhận file âm thanh WAV (hoặc các chunk âm thanh), chạy mô hình Whisper để nhận diện văn bản chính xác và tính điểm số độ chính xác phát âm (Accuracy Score).
+  * **Whisper Transcribe Service:** Tiếp nhận file âm thanh WAV (hoặc các chunk âm thanh), chạy mô hình Whisper để nhận diện văn bản từ âm thanh hệ thống/loa.
   * **NLTK Grammar Parser:** Bẻ gãy các câu tiếng Anh phức tạp thành các thành phần ngữ pháp chính (Subject, Verb, Object, Clauses) giúp người dùng dễ dàng hiểu cấu trúc bài đọc.
 
 ---
@@ -101,7 +101,7 @@ graph TD
 * **Cấu trúc 3 Cột (Three-Pane Layout):**
   * **Left Sidebar:** Navigation, Thư mục môn học (Subject Hierarchy Tree), Danh mục tài liệu.
   * **Main Content Area:** Trình xem tài liệu (PDF/Markdown Viewer), Dashboard nhiệm vụ học tập & thống kê Anki, Danh sách từ vựng, Lịch biểu (Calendar view).
-  * **Right Copilot Panel:** Khung chat AI Copilot trong ngữ cảnh bài đọc, bảng gợi ý từ vựng thông minh, giao diện thu âm Shadowing sóng âm, xem trước thẻ Anki.
+  * **Right Copilot Panel:** Khung chat AI Copilot trong ngữ cảnh bài đọc, bảng gợi ý từ vựng thông minh, giao diện thu âm sóng âm, xem trước thẻ Anki.
 
 ---
 
@@ -139,7 +139,7 @@ erDiagram
 4. **`Term`**: Thuật ngữ/Từ vựng lưu lại (chứa `term`, `contextSentence`, `aiExplanation`, trạng thái đồng bộ `ankiSyncStatus`, `obsidianSyncStatus`).
 5. **`Flashcard`**: Thẻ ghi nhớ SRS (thông số thuật toán SM-2: `interval`, `repetition`, `easeFactor`, `nextReviewDate`, liên kết `externalNoteId` AnkiConnect).
 6. **`ChatSession` & `AiChatHistory`**: Phiên làm việc và lịch sử tin nhắn với AI Copilot.
-7. **`Screenshot` & `AudioRecord`**: Dữ liệu chụp màn hình và ghi âm giọng nói từ System Listener.
+7. **`Screenshot` & `AudioRecord`**: Dữ liệu chụp màn hình và ghi âm hệ thống từ System Listener.
 8. **`Schedule` & `Todo`**: Lịch biểu và công việc cần làm.
 9. **`IntegrationSetting`**: Lưu trữ toàn bộ thông số cấu hình hệ thống (Anki deck name, hotkeys, VAD threshold, vault path).
 
@@ -154,11 +154,11 @@ erDiagram
 4. `RedisOCRWorker` trong AI Service nhận task -> chạy OCR trích xuất chữ -> cập nhật `extractedText` vào SQLite DB.
 5. Backend phát thông điệp WebSockets & SSE `screen_result` tới Web App -> Khung AI Copilot hiển thị chữ được trích xuất để người dùng chọn tra từ hoặc phân tích.
 
-### Flow 2: Luyện Nhận Diện Giọng Nói & Shadowing (VAD Audio Recording)
-1. Người dùng bấm **`Ctrl + Shift + A`** và đọc câu tiếng Anh.
-2. `SystemListener` ghi âm luồng audio -> `Silero VAD` liên tục phân tích tín hiệu âm thanh -> Tự động nhận diện khi người dùng ngừng nói quá 1.2 giây -> Ngắt thu âm.
+### Flow 2: Luyện Nhận Diện Giọng Nói Từ Âm Thanh Hệ Thống (VAD Audio Recording)
+1. Người dùng bấm **`Ctrl + Shift + A`** để thu âm thanh phát ra từ loa hệ thống.
+2. `SystemListener` ghi âm luồng audio -> `Silero VAD` liên tục phân tích tín hiệu âm thanh -> Tự động nhận diện khi không còn tín hiệu tiếng nói -> Ngắt thu âm.
 3. Listener gọi AI Service Whisper API để lấy chuỗi nhận diện chữ -> Đẩy file `.wav` + chuỗi text về Backend Webhook `/input/sound`.
-4. Backend lưu `AudioRecord` -> Broadcast kết quả phát âm tới Web App qua SSE/WebSocket để hiển thị điểm độ chính xác (Accuracy Score).
+4. Backend lưu `AudioRecord` -> Broadcast kết quả văn bản tới Web App qua SSE/WebSocket.
 
 ### Flow 3: Đồng Bộ Cấu Hình Phím Tắt Hệ Thống Thời Gian Thực (Dynamic Settings Sync)
 1. Người dùng thay đổi phím tắt hoặc ngưỡng ngắt giọng nói VAD trên trang Web Settings.

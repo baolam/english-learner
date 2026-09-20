@@ -1,12 +1,13 @@
 'use client';
 
-import { Library, LayoutDashboard, Calendar, Settings, GripVertical, CheckSquare, Sparkles, Image, Headphones } from 'lucide-react';
+import { Library, LayoutDashboard, Calendar, Settings, GripVertical, CheckSquare, Sparkles, Image, Headphones, FolderKanban } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const INITIAL_NAV_ITEMS = [
   { id: 'dashboard', href: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'sessions', href: '/sessions', icon: FolderKanban, label: 'Study Sessions' },
   { id: 'library', href: '/library', icon: Library, label: 'Library' },
   { id: 'schedules', href: '/schedules', icon: Calendar, label: 'Schedules' },
   { id: 'todos', href: '/todos', icon: CheckSquare, label: 'Todos' },
@@ -146,10 +147,13 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-700 mt-auto">
-        <button className="flex items-center gap-3 px-3 py-2 w-full rounded-md hover:bg-slate-800 hover:text-white transition overflow-hidden whitespace-nowrap">
+        <Link 
+          href="/settings"
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-md hover:bg-slate-800 hover:text-white transition overflow-hidden whitespace-nowrap"
+        >
           <Settings size={20} className="flex-shrink-0" />
           <span className="truncate">Settings</span>
-        </button>
+        </Link>
       </div>
 
       {/* Resizer Handle */}

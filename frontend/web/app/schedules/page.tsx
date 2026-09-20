@@ -6,7 +6,8 @@ import { Calendar, dateFnsLocalizer, Event as RbcEvent, View } from 'react-big-c
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Calendar as CalendarIcon, Plus, X, Target, CheckCircle2, Circle } from 'lucide-react';
+import Link from 'next/link';
+import { Calendar as CalendarIcon, Plus, X, Target, CheckCircle2, Circle, ExternalLink } from 'lucide-react';
 import './custom-calendar.css';
 
 const locales = {
@@ -25,6 +26,9 @@ interface Schedule {
   id: string;
   title: string;
   description?: string;
+  icon?: string;
+  coverImage?: string;
+  widgets?: string;
   startTime: string;
   endTime: string;
 }
@@ -297,6 +301,16 @@ export default function SchedulesPage() {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50">
+              <Link 
+                href={`/schedules/${selectedSchedule.id}`}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg font-medium transition text-sm shadow-sm"
+              >
+                <ExternalLink size={16} />
+                Mở trang tùy biến tự do (Notion Style)
+              </Link>
             </div>
           </div>
         </div>

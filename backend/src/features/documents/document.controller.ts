@@ -3,9 +3,10 @@ import * as documentService from './document.service';
 
 export const getAllDocuments = async (req: Request, res: Response) => {
   try {
-    const { subjectId, fileType, status, search, page, limit } = req.query;
+    const { subjectId, studySessionId, fileType, status, search, page, limit } = req.query;
     const result = await documentService.getAllDocuments({
       subjectId: subjectId as string,
+      studySessionId: studySessionId as string,
       fileType: fileType as string,
       status: status as string,
       search: search as string,
@@ -33,13 +34,14 @@ export const getDocumentById = async (req: Request, res: Response) => {
 
 export const createDocument = async (req: Request, res: Response) => {
   try {
-    const { title, subjectId, content, author, publishedYear, tags, localPath, sourceUrl, fileType, status, readingProgress } = req.body;
+    const { title, subjectId, studySessionId, content, author, publishedYear, tags, localPath, sourceUrl, fileType, status, readingProgress } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
     const doc = await documentService.createDocument({
       title,
       subjectId,
+      studySessionId,
       content,
       author,
       publishedYear: publishedYear ? parseInt(publishedYear, 10) : undefined,

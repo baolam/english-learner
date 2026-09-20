@@ -41,7 +41,7 @@ english-learner/
 ### 2. AI Microservice (`services/ai/`)
 * **Framework:** Python, FastAPI, Uvicorn.
 * **Background Worker:** Redis OCR Worker (`ocr_tasks`).
-* **Speech-to-Text (STT):** OpenAI Whisper (Phân tích giọng nói & Shadowing accuracy).
+* **Speech-to-Text (STT):** OpenAI Whisper (Nhận diện giọng nói từ âm thanh hệ thống).
 * **Phân tích Ngữ pháp:** NLTK (Natural Language Toolkit).
 * **LLM & Structured Output:** Llama (local) / Google Gemini API.
 

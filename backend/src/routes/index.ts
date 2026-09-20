@@ -11,6 +11,7 @@ import termRoutes from '../features/terms/term.routes';
 import chatRoutes from '../features/chat/chat.routes';
 import flashcardRoutes from '../features/flashcards/flashcard.routes';
 import settingRoutes from '../features/settings/setting.routes';
+import studySessionRoutes from '../features/study-sessions/study-session.routes';
 import aiRoutes from './ai.routes';
 
 const router = Router();
@@ -28,6 +29,7 @@ router.use('/api/terms', termRoutes);
 router.use('/api/chat/sessions', chatRoutes);
 router.use('/api/flashcards', flashcardRoutes);
 router.use('/api/settings', settingRoutes);
+router.use('/api/study-sessions', studySessionRoutes);
 router.use('/api', aiRoutes);
 
 export default router;

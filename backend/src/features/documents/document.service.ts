@@ -2,6 +2,7 @@ import { prisma } from '../../utils/prisma';
 
 export interface DocumentQueryParams {
   subjectId?: string;
+  studySessionId?: string;
   fileType?: string;
   status?: string;
   search?: string;
@@ -9,18 +10,25 @@ export interface DocumentQueryParams {
   limit?: number;
 }
 
+const parseTagNames = (tagsInput?: string | string[]): string[] => {
+  if (!tagsInput) return [];
+  if (Array.isArray(tagsInput)) return tagsInput.map((t) => t.trim()).filter(Boolean);
+  return tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
+};
+
 export const getAllDocuments = async (query: DocumentQueryParams = {}) => {
-  const { subjectId, fileType, status, search, page = 1, limit = 20 } = query;
+  const { subjectId, studySessionId, fileType, status, search, page = 1, limit = 20 } = query;
 
   const where: any = {};
   if (subjectId) where.subjectId = subjectId;
+  if (studySessionId) where.studySessionId = studySessionId;
   if (fileType) where.fileType = fileType;
   if (status) where.status = status;
   if (search) {
     where.OR = [
       { title: { contains: search } },
       { author: { contains: search } },
-      { tags: { contains: search } }
+      { tags: { some: { name: { contains: search } } } }
     ];
   }
 
@@ -32,6 +40,8 @@ export const getAllDocuments = async (query: DocumentQueryParams = {}) => {
       where,
       include: {
         subject: true,
+        studySession: { select: { id: true, title: true, category: true } },
+        tags: true,
         _count: {
           select: { highlights: true, terms: true, chatSessions: true }
         }
@@ -56,6 +66,8 @@ export const getDocumentById = async (id: string) => {
     where: { id },
     include: {
       subject: true,
+      studySession: true,
+      tags: true,
       highlights: { orderBy: { createdAt: 'asc' } },
       terms: { orderBy: { createdAt: 'desc' } },
       chatSessions: { orderBy: { updatedAt: 'desc' } }
@@ -65,19 +77,36 @@ export const getDocumentById = async (id: string) => {
 
 export const createDocument = async (data: {
   subjectId?: string;
+  studySessionId?: string;
   title: string;
   content?: string;
   author?: string;
   publishedYear?: number;
-  tags?: string;
+  tags?: string | string[];
   localPath?: string;
   sourceUrl?: string;
   fileType?: string;
   status?: string;
   readingProgress?: string;
 }) => {
+  const { tags, ...restData } = data;
+  const tagNames = parseTagNames(tags);
+
   return prisma.document.create({
-    data
+    data: {
+      ...restData,
+      tags: tagNames.length > 0 ? {
+        connectOrCreate: tagNames.map((name) => ({
+          where: { name },
+          create: { name }
+        }))
+      } : undefined
+    },
+    include: {
+      subject: true,
+      studySession: true,
+      tags: true
+    }
   });
 };
 
@@ -85,11 +114,12 @@ export const updateDocument = async (
   id: string,
   data: Partial<{
     subjectId: string | null;
+    studySessionId: string | null;
     title: string;
     content: string;
     author: string;
     publishedYear: number;
-    tags: string;
+    tags: string | string[];
     localPath: string;
     sourceUrl: string;
     fileType: string;
@@ -97,9 +127,28 @@ export const updateDocument = async (
     readingProgress: string;
   }>
 ) => {
+  const { tags, ...restData } = data;
+  const updateData: any = { ...restData };
+
+  if (tags !== undefined) {
+    const tagNames = parseTagNames(tags);
+    updateData.tags = {
+      set: [],
+      connectOrCreate: tagNames.map((name) => ({
+        where: { name },
+        create: { name }
+      }))
+    };
+  }
+
   return prisma.document.update({
     where: { id },
-    data
+    data: updateData,
+    include: {
+      subject: true,
+      studySession: true,
+      tags: true
+    }
   });
 };
 

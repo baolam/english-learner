@@ -9,6 +9,7 @@ export const getAllTerms = async (req: Request, res: Response) => {
       documentId,
       screenshotId,
       audioRecordId,
+      sessionId,
       ankiSyncStatus,
       obsidianSyncStatus,
       search,
@@ -22,6 +23,7 @@ export const getAllTerms = async (req: Request, res: Response) => {
       documentId: documentId as string,
       screenshotId: screenshotId as string,
       audioRecordId: audioRecordId as string,
+      sessionId: sessionId as string,
       ankiSyncStatus: ankiSyncStatus as string,
       obsidianSyncStatus: obsidianSyncStatus as string,
       search: search as string,
@@ -50,7 +52,7 @@ export const getTermById = async (req: Request, res: Response) => {
 
 export const createTerm = async (req: Request, res: Response) => {
   try {
-    const { term, termType, sourceType, documentId, screenshotId, audioRecordId, contextSentence, aiExplanation } = req.body;
+    const { term, termType, sourceType, documentId, screenshotId, audioRecordId, sessionId, contextSentence, aiExplanation, tags } = req.body;
     if (!term) {
       return res.status(400).json({ error: 'Term text is required' });
     }
@@ -62,8 +64,10 @@ export const createTerm = async (req: Request, res: Response) => {
       documentId,
       screenshotId,
       audioRecordId,
+      sessionId,
       contextSentence,
-      aiExplanation
+      aiExplanation,
+      tags
     });
 
     res.status(201).json(createdTerm);

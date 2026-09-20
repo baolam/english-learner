@@ -9,7 +9,10 @@ import appRouter from './routes';
 import { initWhisperWebSocket } from './sockets/whisper.socket';
 import { initRedisSubscriber } from './utils/redis';
 import { startScheduleCron } from './utils/cron/schedule.cron';
+import { startCleanupCron } from './utils/cron/cleanup.cron';
 import { errorHandler } from './middlewares/error.middleware';
+
+import { setupSwagger } from './utils/swagger';
 
 dotenv.config();
 
@@ -32,13 +35,36 @@ if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
 app.use('/media/screenshots', express.static(screenshotsDir));
 app.use('/media/audio', express.static(audioDir));
 
-// Health check endpoint
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: System status OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 service:
+ *                   type: string
+ *                   example: LingoAnki Backend API
+ */
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'LingoAnki Backend API' });
 });
 
 // Mount All Application & Feature Routes
 app.use('/', appRouter);
+
+// Initialize Swagger Documentation
+setupSwagger(app);
 
 // Centralized Global Error Handler Middleware
 app.use(errorHandler);
@@ -49,9 +75,10 @@ const wss = new WebSocketServer({ server });
 // Initialize WebSocket Proxy & Helper
 initWhisperWebSocket(wss);
 
-// Initialize Redis Subscriber & Background Scheduler
+// Initialize Redis Subscriber & Background Schedulers
 initRedisSubscriber();
 startScheduleCron();
+startCleanupCron();
 
 server.listen(PORT, () => {
   console.log(`[Server] LingoAnki Backend is running on http://localhost:${PORT}`);
