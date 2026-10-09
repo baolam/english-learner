@@ -16,6 +16,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "ai-service"}
+
 app.include_router(api_router)
 
 if __name__ == "__main__":

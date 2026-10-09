@@ -6,7 +6,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -91,7 +92,7 @@ export default function ScheduleDetailPage() {
   const fetchSchedule = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`http://localhost:3000/api/schedules/${scheduleId}`);
+      const res = await api.get(`/api/schedules/${scheduleId}`);
       const data: Schedule = res.data;
       setSchedule(data);
       setTitle(data.title);
@@ -150,17 +151,18 @@ export default function ScheduleDetailPage() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      await axios.put(`http://localhost:3000/api/schedules/${scheduleId}`, {
+      await api.put(`/api/schedules/${scheduleId}`, {
         title,
         icon,
         coverImage,
         widgets: JSON.stringify(widgets),
       });
       setSaveSuccess(true);
+      toast.success('Đã lưu trang tùy biến thành công!');
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving schedule:', error);
-      alert('Có lỗi xảy ra khi lưu trang!');
+      toast.error('Có lỗi xảy ra khi lưu trang!');
     } finally {
       setSaving(false);
     }
@@ -217,7 +219,7 @@ export default function ScheduleDetailPage() {
 
   const toggleTodoCompletion = async (todoId: string, currentStatus: boolean) => {
     try {
-      await axios.put(`http://localhost:3000/api/todos/${todoId}`, {
+      await api.put(`/api/todos/${todoId}`, {
         isCompleted: !currentStatus,
       });
       if (schedule) {
@@ -226,15 +228,17 @@ export default function ScheduleDetailPage() {
           todos: schedule.todos.map((t) => (t.id === todoId ? { ...t, isCompleted: !currentStatus } : t)),
         });
       }
+      toast.success(currentStatus ? 'Đã đánh dấu chưa xong' : 'Đã hoàn thành!');
     } catch (error) {
       console.error('Error toggling todo status:', error);
+      toast.error('Cập nhật trạng thái thất bại.');
     }
   };
 
   const handleCreateTodo = async () => {
     if (!newTodoTitle.trim() || !scheduleId) return;
     try {
-      const res = await axios.post('http://localhost:3000/api/todos', {
+      const res = await api.post('/api/todos', {
         title: newTodoTitle,
         scheduleId: scheduleId,
       });
@@ -245,8 +249,10 @@ export default function ScheduleDetailPage() {
         });
       }
       setNewTodoTitle('');
+      toast.success('Đã thêm task mới vào sự kiện!');
     } catch (error) {
       console.error('Error creating todo:', error);
+      toast.error('Không thể tạo task mới.');
     }
   };
 

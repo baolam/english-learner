@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { MessageSquare, BookOpen, Mic, X, Clipboard } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { getApiBaseUrl } from '@/lib/api';
 
 export function RightPanel() {
   const { isRightPanelOpen, activeRightPanelTab, setRightPanelTab, toggleRightPanel } = useAppStore();
@@ -42,7 +43,8 @@ export function RightPanel() {
 
   useEffect(() => {
     // Connect to SSE endpoint instead of WebSocket for frontend events
-    const eventSource = new EventSource('http://localhost:3000/api/stream');
+    const baseUrl = getApiBaseUrl();
+    const eventSource = new EventSource(`${baseUrl}/api/stream`);
 
     eventSource.onopen = () => {
       console.log('[Clipboard] Connected to backend SSE');
@@ -96,7 +98,7 @@ export function RightPanel() {
     setChatMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
     try {
-      const res = await fetch('http://localhost:3000/api/chat', {
+      const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: userMsg })

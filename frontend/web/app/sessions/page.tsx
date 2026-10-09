@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import {
   FolderKanban,
   Plus,
@@ -126,7 +127,7 @@ export default function StudySessionsPage() {
       if (selectedStatus !== 'ALL') params.status = selectedStatus;
       if (searchQuery) params.search = searchQuery;
 
-      const res = await axios.get('http://localhost:3000/api/study-sessions', { params });
+      const res = await api.get('/api/study-sessions', { params });
       setSessions(res.data.data || []);
     } catch (error) {
       console.error('Error fetching study sessions:', error);
@@ -168,15 +169,17 @@ export default function StudySessionsPage() {
     e.preventDefault();
     try {
       if (editingSession) {
-        await axios.put(`http://localhost:3000/api/study-sessions/${editingSession.id}`, formData);
+        await api.put(`/api/study-sessions/${editingSession.id}`, formData);
+        toast.success('Đã cập nhật phiên học!');
       } else {
-        await axios.post('http://localhost:3000/api/study-sessions', formData);
+        await api.post('/api/study-sessions', formData);
+        toast.success('Đã tạo phiên học mới!');
       }
       setIsModalOpen(false);
       fetchSessions();
     } catch (error) {
       console.error('Error saving study session:', error);
-      alert('Failed to save study session.');
+      toast.error('Lưu phiên học thất bại.');
     }
   };
 
@@ -184,19 +187,20 @@ export default function StudySessionsPage() {
     e?.stopPropagation();
     if (!confirm('Are you sure you want to delete this study session?')) return;
     try {
-      await axios.delete(`http://localhost:3000/api/study-sessions/${id}`);
+      await api.delete(`/api/study-sessions/${id}`);
       if (detailSession?.id === id) setDetailSession(null);
+      toast.success('Đã xóa phiên học.');
       fetchSessions();
     } catch (error) {
       console.error('Error deleting study session:', error);
-      alert('Failed to delete study session.');
+      toast.error('Xóa phiên học thất bại.');
     }
   };
 
   const openDetailModal = async (session: StudySession) => {
     try {
       setIsDetailLoading(true);
-      const res = await axios.get(`http://localhost:3000/api/study-sessions/${session.id}`);
+      const res = await api.get(`/api/study-sessions/${session.id}`);
       setDetailSession(res.data);
     } catch (error) {
       console.error('Error fetching session details:', error);
@@ -209,11 +213,11 @@ export default function StudySessionsPage() {
     e.preventDefault();
     if (!detailSession || !sourceTermId || !targetTermId) return;
     if (sourceTermId === targetTermId) {
-      alert('Source and Target terms must be different.');
+      toast.warning('Thuật ngữ Nguồn và Đích phải khác nhau.');
       return;
     }
     try {
-      await axios.post(`http://localhost:3000/api/study-sessions/${detailSession.id}/relations`, {
+      await api.post(`/api/study-sessions/${detailSession.id}/relations`, {
         sourceTermId,
         targetTermId,
         relationType
@@ -221,19 +225,22 @@ export default function StudySessionsPage() {
       openDetailModal(detailSession);
       setSourceTermId('');
       setTargetTermId('');
+      toast.success('Đã tạo liên kết khái niệm mới!');
     } catch (error) {
       console.error('Error creating concept relation:', error);
-      alert('Failed to add concept relation.');
+      toast.error('Tạo liên kết thất bại.');
     }
   };
 
   const handleDeleteConceptRelation = async (relationId: string) => {
     if (!detailSession) return;
     try {
-      await axios.delete(`http://localhost:3000/api/study-sessions/relations/${relationId}`);
+      await api.delete(`/api/study-sessions/relations/${relationId}`);
       openDetailModal(detailSession);
+      toast.success('Đã xóa liên kết khái niệm.');
     } catch (error) {
       console.error('Error deleting concept relation:', error);
+      toast.error('Xóa liên kết thất bại.');
     }
   };
 

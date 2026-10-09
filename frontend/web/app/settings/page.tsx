@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import { Settings, Save, Check, RotateCcw, Type, Eye, ToggleLeft, ToggleRight, AlertCircle, ArrowLeftRight, Gauge } from 'lucide-react';
 
 const DEFAULT_SLOGAN =
@@ -35,8 +36,8 @@ export default function SettingsPage() {
     if (cachedSpeed !== null) setMarqueeSpeed(parseFloat(cachedSpeed) || 1.0);
     if (cachedDirection !== null) setMarqueeDirection(cachedDirection);
 
-    axios
-      .get('http://localhost:3000/api/settings')
+    api
+      .get('/api/settings')
       .then((res) => {
         if (res.data) {
           if (res.data.marqueeText !== undefined) {
@@ -97,12 +98,14 @@ export default function SettingsPage() {
     );
 
     try {
-      await axios.put('http://localhost:3000/api/settings', payload);
+      await api.put('/api/settings', payload);
       setSaveSuccess(true);
+      toast.success('Đã đồng bộ cài đặt thành công!');
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error('Error saving settings:', err);
       setErrorMessage('Không thể kết nối đến server backend. Đã lưu cài đặt tạm thời trên trình duyệt.');
+      toast.warning('Đã lưu tạm thời trên trình duyệt. Không thể kết nối backend.');
     } finally {
       setIsSaving(false);
     }

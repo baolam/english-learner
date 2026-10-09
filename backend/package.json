@@ -7,6 +7,7 @@
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
+    "test": "ts-node tests/run-tests.ts",
     "seed": "ts-node prisma/seed.ts"
   },
   "prisma": {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { useAppStore } from '@/store/appStore';
 import { PanelRightOpen } from 'lucide-react';
 
@@ -26,7 +26,7 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const todosRes = await axios.get('http://localhost:3000/api/todos');
+        const todosRes = await api.get('/api/todos');
         const mappedTodos = todosRes.data.map((t: { id: string; title: string; isCompleted: boolean }) => ({
           id: t.id,
           title: t.title,
@@ -38,7 +38,7 @@ export default function Home() {
       }
 
       try {
-        const schedulesRes = await axios.get('http://localhost:3000/api/schedules');
+        const schedulesRes = await api.get('/api/schedules');
         const mappedSchedules = schedulesRes.data.map((s: { id: string; title: string; startTime: string; endTime: string }) => {
           const start = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           const end = new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -55,8 +55,8 @@ export default function Home() {
       
       try {
         // Fetch Anki progress for a default deck, e.g. "Default"
-        const learnRes = await axios.get('http://localhost:3000/anki/learn?deck=Default');
-        const reviewRes = await axios.get('http://localhost:3000/anki/review?deck=Default');
+        const learnRes = await api.get('/anki/learn?deck=Default');
+        const reviewRes = await api.get('/anki/review?deck=Default');
         setAnkiProgress({
           newCards: learnRes.data.data ? learnRes.data.data.length : 0,
           reviewCards: reviewRes.data.data ? reviewRes.data.data.length : 0

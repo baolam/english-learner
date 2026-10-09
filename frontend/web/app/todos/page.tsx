@@ -1,98 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import { useTodos, Todo } from '@/hooks/useTodos';
+import { useSchedules } from '@/hooks/useSchedules';
+import { toast } from 'sonner';
 import { CheckSquare, Plus, X, CheckCircle2, Circle, Target } from 'lucide-react';
 
-interface Schedule {
-  id: string;
-  title: string;
-}
-
-interface Todo {
-  id: string;
-  title: string;
-  description?: string;
-  isCompleted: boolean;
-  scheduleId?: string;
-  createdAt: string;
-}
-
 export default function TodosPage() {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const { todos, createTodo, updateTodo, deleteTodo, toggleTodo } = useTodos();
+  const { schedules } = useSchedules();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTodo, setNewTodo] = useState({ title: '', description: '', scheduleId: '' });
-  
   const [selectedTodoForEdit, setSelectedTodoForEdit] = useState<Todo | null>(null);
-
-  const fetchData = async () => {
-    try {
-      const [todoRes, schedRes] = await Promise.all([
-        axios.get('http://localhost:3000/api/todos'),
-        axios.get('http://localhost:3000/api/schedules')
-      ]);
-      setTodos(todoRes.data);
-      setSchedules(schedRes.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleCreateTodo = async () => {
     if (!newTodo.title.trim()) return;
     try {
-      await axios.post('http://localhost:3000/api/todos', {
+      await createTodo({
         title: newTodo.title,
         description: newTodo.description,
         scheduleId: newTodo.scheduleId || undefined
       });
       setIsModalOpen(false);
       setNewTodo({ title: '', description: '', scheduleId: '' });
-      fetchData();
+      toast.success('Đã tạo nhiệm vụ mới thành công!');
     } catch (error) {
       console.error('Error creating todo:', error);
+      toast.error('Tạo nhiệm vụ thất bại.');
     }
   };
 
   const handleUpdateTodo = async () => {
     if (!selectedTodoForEdit || !selectedTodoForEdit.title.trim()) return;
     try {
-      await axios.put(`http://localhost:3000/api/todos/${selectedTodoForEdit.id}`, {
+      await updateTodo(selectedTodoForEdit.id, {
         title: selectedTodoForEdit.title,
         description: selectedTodoForEdit.description,
         scheduleId: selectedTodoForEdit.scheduleId || undefined
       });
       setSelectedTodoForEdit(null);
-      fetchData();
+      toast.success('Đã cập nhật nhiệm vụ!');
     } catch (error) {
       console.error('Error updating todo:', error);
+      toast.error('Cập nhật nhiệm vụ thất bại.');
     }
   };
 
   const handleDeleteTodo = async () => {
     if (!selectedTodoForEdit) return;
     try {
-      await axios.delete(`http://localhost:3000/api/todos/${selectedTodoForEdit.id}`);
+      await deleteTodo(selectedTodoForEdit.id);
       setSelectedTodoForEdit(null);
-      fetchData();
+      toast.success('Đã xóa nhiệm vụ.');
     } catch (error) {
       console.error('Error deleting todo:', error);
+      toast.error('Xóa nhiệm vụ thất bại.');
     }
   };
 
   const toggleTodoCompletion = async (todo: Todo) => {
     try {
-      await axios.put(`http://localhost:3000/api/todos/${todo.id}`, {
-        isCompleted: !todo.isCompleted
-      });
-      fetchData();
+      await toggleTodo(todo);
     } catch (error) {
       console.error('Error toggling todo:', error);
+      toast.error('Cập nhật trạng thái thất bại.');
     }
   };
 

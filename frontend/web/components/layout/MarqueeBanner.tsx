@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
 
 const DEFAULT_SLOGAN =
   '🔥 QUYẾT TÂM!!!!! • Có tiền ít thì từ thiện ít, nhiều thì từ thiện nhiều nha!!! • Học cái hiểu biết nhiều để biết ơn • Lấy tham thiền làm niềm vui • English learner! (chuẩn bị về các cơ chế management và cách thu âm) • Bản vẽ • PHẢI OBSERVATION NHIỀU HƠN NỮA!!!!! • PHẢI BIẾT LƯỢNG SỨC MÌNH!!!';
@@ -30,8 +30,8 @@ export function MarqueeBanner() {
     if (cachedSpeed !== null) setMarqueeSpeed(parseFloat(cachedSpeed) || 1.0);
     if (cachedDirection !== null) setMarqueeDirection(cachedDirection);
 
-    axios
-      .get('http://localhost:3000/api/settings')
+    api
+      .get('/api/settings')
       .then((res) => {
         if (res.data) {
           if (res.data.marqueeText !== undefined) {

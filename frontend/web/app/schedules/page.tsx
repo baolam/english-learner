@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import { Calendar, dateFnsLocalizer, Event as RbcEvent, View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale/en-US';
@@ -67,8 +68,8 @@ export default function SchedulesPage() {
   const fetchData = async () => {
     try {
       const [schedRes, todoRes] = await Promise.all([
-        axios.get('http://localhost:3000/api/schedules'),
-        axios.get('http://localhost:3000/api/todos')
+        api.get('/api/schedules'),
+        api.get('/api/todos')
       ]);
       
       const fetchedSchedules: Schedule[] = schedRes.data;
@@ -123,27 +124,31 @@ export default function SchedulesPage() {
   const handleCreateTodo = async () => {
     if (!newTodo.title.trim()) return;
     try {
-      await axios.post('http://localhost:3000/api/todos', {
+      await api.post('/api/todos', {
         title: newTodo.title,
         description: newTodo.description,
         scheduleId: newTodo.scheduleId || undefined
       });
       setIsModalOpen(false);
       setNewTodo({ title: '', description: '', scheduleId: '' });
+      toast.success('Đã tạo nhiệm vụ mới thành công!');
       fetchData();
     } catch (error) {
       console.error('Error creating todo:', error);
+      toast.error('Không thể tạo nhiệm vụ.');
     }
   };
 
   const toggleTodoCompletion = async (todo: Todo) => {
     try {
-      await axios.put(`http://localhost:3000/api/todos/${todo.id}`, {
+      await api.put(`/api/todos/${todo.id}`, {
         isCompleted: !todo.isCompleted
       });
+      toast.success(todo.isCompleted ? 'Đã đánh dấu chưa xong' : 'Đã hoàn thành nhiệm vụ!');
       fetchData();
     } catch (error) {
       console.error('Error updating todo:', error);
+      toast.error('Cập nhật thất bại.');
     }
   };
 
