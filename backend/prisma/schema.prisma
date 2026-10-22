@@ -228,6 +228,13 @@ model Schedule {
   startTime   DateTime
   endTime     DateTime
   isCompleted Boolean  @default(false)
+
+  // Lowest reminder threshold (minutes-before-start: 15, 5, or 0) already
+  // notified for this schedule. Lets the reminder cron dedupe across process
+  // restarts and catch up on a missed threshold instead of re-firing or
+  // silently skipping it.
+  lastReminderThreshold Int?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

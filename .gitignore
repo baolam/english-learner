@@ -24,6 +24,9 @@ ios/Pods/
 .DS_Store
 Thumbs.db
 
+# SQLite transient files
+*.db-journal
+
 # Logs & Temp
 .logs/
 *.log

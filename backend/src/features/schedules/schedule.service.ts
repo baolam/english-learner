@@ -30,9 +30,14 @@ export class ScheduleService {
   }
 
   static async updateSchedule(id: string, data: any) {
-    if (data.startTime) data.startTime = new Date(data.startTime);
+    if (data.startTime) {
+      data.startTime = new Date(data.startTime);
+      // Rescheduling invalidates any reminders already sent for the old
+      // start time, so the 15/5/0-minute reminder cycle runs fresh.
+      data.lastReminderThreshold = null;
+    }
     if (data.endTime) data.endTime = new Date(data.endTime);
-    
+
     return prisma.schedule.update({
       where: { id },
       data,
