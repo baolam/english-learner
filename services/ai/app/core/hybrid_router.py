@@ -42,7 +42,8 @@ class HybridAIRouter:
     def get_router_status(self) -> Dict[str, Any]:
         return {
             "default_engine": "local_llama",
-            "local_llama_available": self.llama_service is not None and getattr(self.llama_service, "llm", None) is not None,
+            "local_llama_available": self.llama_service is not None,
+            "local_llama_loaded": self.llama_service is not None and getattr(self.llama_service, "llm", None) is not None,
             "gemini_api_configured": self.gemini_service.is_configured(),
             "fast_processor_available": True,
             "current_local_model": self.llama_service.model_size if self.llama_service else None
@@ -63,7 +64,7 @@ class HybridAIRouter:
                 print(f"[HybridAIRouter] Gemini API chat failed: {e}. Falling back to Local Llama...")
 
         # 2. Try Default Local Llama Mode
-        if mode != "fast" and self.llama_service and self.llama_service.llm:
+        if mode != "fast" and self.llama_service:
             try:
                 res = self.llama_service.generate_response(prompt, history=history)
                 return {"response": res, "provider": "local_llama", "is_fallback": use_heavy, "task_type": "local"}
@@ -107,7 +108,7 @@ class HybridAIRouter:
                 print(f"[HybridAIRouter] Gemini explain_term failed: {e}")
 
         # Primary: Local Llama
-        if self.llama_service and self.llama_service.llm:
+        if self.llama_service:
             try:
                 res = self.llama_service.explain_term(term, context_sentence)
                 res.update({"provider": "local_llama", "is_fallback": False, "task_type": "local"})
@@ -148,7 +149,7 @@ class HybridAIRouter:
                 print(f"[HybridAIRouter] Gemini parse_grammar failed: {e}")
 
         # Primary: Local Llama
-        if self.llama_service and self.llama_service.llm:
+        if self.llama_service:
             try:
                 res = self.llama_service.parse_grammar_with_nltk(sentence, nltk_data)
                 res.update({"provider": "local_llama", "is_fallback": False, "task_type": "local"})
@@ -177,7 +178,7 @@ class HybridAIRouter:
             return res
 
         # Primary: Local Llama
-        if self.llama_service and self.llama_service.llm:
+        if self.llama_service:
             try:
                 res = self.llama_service.generate_flashcard(term, context_sentence, definition)
                 res.update({"provider": "local_llama", "is_fallback": False, "task_type": "local"})
@@ -215,7 +216,7 @@ class HybridAIRouter:
             except Exception as e:
                 print(f"[HybridAIRouter] Gemini extract_key_terms failed: {e}")
 
-        if self.llama_service and self.llama_service.llm:
+        if self.llama_service:
             try:
                 res = self.llama_service.extract_key_terms(text)
                 res.update({"provider": "local_llama", "is_fallback": False, "task_type": "local"})
@@ -251,7 +252,7 @@ class HybridAIRouter:
             except Exception as e:
                 print(f"[HybridAIRouter] Gemini summarize failed: {e}")
 
-        if self.llama_service and self.llama_service.llm:
+        if self.llama_service:
             try:
                 res = self.llama_service.summarize_and_paraphrase(text)
                 res.update({"provider": "local_llama", "is_fallback": False, "task_type": "local"})

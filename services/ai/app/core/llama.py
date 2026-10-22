@@ -20,27 +20,31 @@ MODEL_CONFIGS = {
 
 class LlamaService:
     def __init__(self, model_size: str = "1b"):
-        self.model_size = model_size.lower() if model_size.lower() in MODEL_CONFIGS else "1b"
-        
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.model_dir = os.path.join(base_dir, "models")
         self.llm = None
-        
-        self.load_model(self.model_size)
 
-    def load_model(self, model_size: str):
+        # Only resolve config (repo/filename/path) here - the actual GGUF file
+        # download + llama-cpp model load is deferred to _ensure_loaded(), so
+        # starting the AI service doesn't eagerly spend ~1GB+ RAM on a model
+        # that may never be used in a given session.
+        self._configure(model_size)
+
+    def _configure(self, model_size: str):
         target_size = model_size.lower()
         if target_size not in MODEL_CONFIGS:
             target_size = "1b"
-            
+
         config = MODEL_CONFIGS[target_size]
         self.model_size = target_size
         self.repo_id = config["repo_id"]
         self.filename = config["filename"]
         self.model_path = os.path.join(self.model_dir, self.filename)
-        
+
+    def load_model(self, model_size: str):
+        self._configure(model_size)
         self._ensure_model_downloaded()
-        
+
         print(f"Loading Llama {self.model_size.upper()} model ({self.filename}) with llama-cpp-python...")
         if self.llm is not None:
             del self.llm
@@ -55,15 +59,21 @@ class LlamaService:
         )
         print(f"Llama 3.2 {self.model_size.upper()} Service initialized.")
 
+    def _ensure_loaded(self):
+        """Loads the model into memory on first actual use (lazy load)."""
+        if self.llm is None:
+            self.load_model(self.model_size)
+
     def switch_model(self, model_size: str) -> Dict[str, Any]:
-        """Dynamically switch between 1b and 3b models."""
+        """Dynamically switch between 1b and 3b models. This loads immediately
+        (not lazily) since it's an explicit user action expecting the switch to take effect."""
         target_size = model_size.lower()
         if target_size not in MODEL_CONFIGS:
             return {"status": "error", "message": f"Unsupported model size '{model_size}'. Supported: '1b', '3b'"}
-        
+
         if target_size == self.model_size and self.llm is not None:
             return {"status": "success", "message": f"Model is already set to {self.model_size.upper()}", "current_model": self.model_size}
-        
+
         self.load_model(target_size)
         return {"status": "success", "message": f"Switched to Llama 3.2 {self.model_size.upper()} model", "current_model": self.model_size}
 
@@ -109,8 +119,9 @@ class LlamaService:
         return "".join(prompt_parts)
 
     def generate_response(self, user_prompt: str, system_prompt: str = "You are a helpful AI assistant. You answer strictly in English.", history: Optional[List[Dict[str, Any]]] = None) -> str:
+        self._ensure_loaded()
         prompt = self._format_chat_prompt(user_prompt, system_prompt, history)
-        
+
         try:
             output = self.llm(
                 prompt,
@@ -125,6 +136,7 @@ class LlamaService:
             return f"[Llama-cpp Error] {e}"
 
     def generate_stream(self, user_prompt: str, history: Optional[List[Dict[str, Any]]] = None):
+        self._ensure_loaded()
         system_prompt = "You are a helpful AI assistant. You answer strictly in English."
         prompt = self._format_chat_prompt(user_prompt, system_prompt, history)
         try:

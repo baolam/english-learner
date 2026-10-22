@@ -72,7 +72,7 @@ async def process_chat_stream(req: ChatRequest):
         raise HTTPException(status_code=400, detail="Missing chat prompt or message.")
     
     # Check if router should stream local vs fallback API
-    use_llama = (req.mode != "api" and not req.heavy and llama_service is not None and llama_service.llm is not None)
+    use_llama = (req.mode != "api" and not req.heavy and llama_service is not None)
     
     if not use_llama:
         # Generate complete response via HybridRouter and yield as single stream
