@@ -27,6 +27,11 @@ Thumbs.db
 # SQLite transient files
 *.db-journal
 
+# Backend test database (isolated from dev.db, recreated on every test run)
+backend/prisma/test.db
+backend/prisma/test.db-*
+backend/uploads-test/
+
 # Logs & Temp
 .logs/
 *.log
