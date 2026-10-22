@@ -1,8 +1,9 @@
 import { prisma } from '../../utils/prisma';
+import { StudyCategory, StudyStatus, RelationType } from '@english-learner/types';
 
 export interface StudySessionQueryParams {
-  category?: string;
-  status?: string;
+  category?: StudyCategory;
+  status?: StudyStatus;
   search?: string;
   page?: number;
   limit?: number;
@@ -84,8 +85,8 @@ export const getStudySessionById = async (id: string) => {
 
 export const createStudySession = async (data: {
   title?: string;
-  category?: string;
-  status?: string;
+  category?: StudyCategory;
+  status?: StudyStatus;
   aiSummary?: string;
   startedAt?: Date | string;
   endedAt?: Date | string;
@@ -115,8 +116,8 @@ export const updateStudySession = async (
   id: string,
   data: Partial<{
     title: string;
-    category: string;
-    status: string;
+    category: StudyCategory;
+    status: StudyStatus;
     aiSummary: string;
     startedAt: Date | string;
     endedAt: Date | string | null;
@@ -170,14 +171,14 @@ export const addConceptRelation = async (data: {
   sessionId: string;
   sourceTermId: string;
   targetTermId: string;
-  relationType?: string;
+  relationType?: RelationType;
 }) => {
   return prisma.conceptRelation.create({
     data: {
       sessionId: data.sessionId,
       sourceTermId: data.sourceTermId,
       targetTermId: data.targetTermId,
-      relationType: data.relationType || 'RELATED_TO'
+      relationType: data.relationType || RelationType.RELATED_TO
     },
     include: {
       sourceTerm: true,

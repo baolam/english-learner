@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import * as todoController from './todo.controller';
+import { validateRequest } from '../../middlewares/validate.middleware';
+import { createTodoSchema } from './todo.schema';
 
 const router = Router();
 
@@ -74,7 +76,7 @@ const router = Router();
  *         description: Title is required
  */
 router.get('/', todoController.getAllTodos);
-router.post('/', todoController.createTodo);
+router.post('/', validateRequest(createTodoSchema), todoController.createTodo);
 
 /**
  * @openapi

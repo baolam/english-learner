@@ -2,7 +2,7 @@
 
 import { Headphones, Upload, Search, PlayCircle, Trash2, ExternalLink, X, Info, FolderKanban, Clock } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { api, getApiBaseUrl } from '@/lib/api';
 
 interface AudioRecord {
   filename: string;
@@ -27,7 +27,7 @@ export default function AudiosPage() {
   const fetchAudios = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get('http://localhost:3000/media/audio');
+      const res = await api.get('/media/audio');
       setAudios(res.data.files || []);
     } catch (error) {
       console.error('Error fetching audios:', error);
@@ -53,7 +53,7 @@ export default function AudiosPage() {
 
     try {
       setIsUploading(true);
-      await axios.post('http://localhost:3000/media/audio', formData, {
+      await api.post('/media/audio', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -75,7 +75,7 @@ export default function AudiosPage() {
     if (!confirm('Are you sure you want to delete this audio?')) return;
 
     try {
-      await axios.delete(`http://localhost:3000/media/audio/${filename}`);
+      await api.delete(`/media/audio/${filename}`);
       setAudios(prev => prev.filter(a => a.filename !== filename));
       if (selectedAudio?.filename === filename) {
         setSelectedAudio(null);
@@ -173,7 +173,7 @@ export default function AudiosPage() {
                 <PlayCircle size={48} className="text-blue-500 opacity-70 group-hover:opacity-100 transition" />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
                   <a
-                    href={`http://localhost:3000${audio.url}`}
+                    href={`${getApiBaseUrl()}${audio.url}`}
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 transition"
@@ -242,7 +242,7 @@ export default function AudiosPage() {
               <div className="flex justify-center">
                 <audio
                   controls
-                  src={`http://localhost:3000${selectedAudio.url}`}
+                  src={`${getApiBaseUrl()}${selectedAudio.url}`}
                   className="w-full max-w-md"
                   autoPlay
                 />

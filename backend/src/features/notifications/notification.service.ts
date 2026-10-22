@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma';
 import { Response } from 'express';
+import { NotificationType } from '@english-learner/types';
 
 export class NotificationService {
   private static clients: Response[] = [];
@@ -12,7 +13,7 @@ export class NotificationService {
     this.clients = this.clients.filter(c => c !== client);
   }
 
-  static async createNotification(title: string, body: string, type: string = 'SYSTEM') {
+  static async createNotification(title: string, body: string, type: NotificationType = NotificationType.SYSTEM) {
     const notification = await prisma.notification.create({
       data: {
         title,

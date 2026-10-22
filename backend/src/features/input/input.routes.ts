@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { handleScreenUpload, handleSoundUpload, handleTextUpload } from './input.controller';
+import { validateRequest } from '../../middlewares/validate.middleware';
+import { soundUploadSchema } from './input.schema';
 
 import { diskStorage } from '../../utils/upload';
 
@@ -64,7 +66,7 @@ router.post('/screen', uploadScreen.single('file'), handleScreenUpload);
  *       500:
  *         description: Server error
  */
-router.post('/sound', uploadSound.single('file'), handleSoundUpload);
+router.post('/sound', uploadSound.single('file'), validateRequest(soundUploadSchema), handleSoundUpload);
 
 /**
  * @openapi

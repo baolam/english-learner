@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MessageSquare, BookOpen, Mic, Clipboard, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { getApiBaseUrl } from '@/lib/api';
 
 export default function CopilotPage() {
   const [activeTab, setActiveTab] = useState<'chat' | 'vocabulary' | 'speaking'>('chat');
@@ -15,7 +16,7 @@ export default function CopilotPage() {
 
   // SSE Stream Effect
   useEffect(() => {
-    const eventSource = new EventSource('http://localhost:3000/api/stream');
+    const eventSource = new EventSource(`${getApiBaseUrl()}/api/stream`);
 
     eventSource.onopen = () => console.log('[Copilot] Connected to backend SSE');
 
@@ -65,7 +66,7 @@ export default function CopilotPage() {
     setChatMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
     try {
-      const res = await fetch('http://localhost:3000/api/chat', {
+      const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: userMsg })

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import * as subjectController from './subject.controller';
+import { validateRequest } from '../../middlewares/validate.middleware';
+import { createSubjectSchema } from './subject.schema';
 
 const router = Router();
 
@@ -76,7 +78,7 @@ const router = Router();
  *         description: Name is required
  */
 router.get('/', subjectController.getAllSubjects);
-router.post('/', subjectController.createSubject);
+router.post('/', validateRequest(createSubjectSchema), subjectController.createSubject);
 
 /**
  * @openapi

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import type { IntegrationSettingDTO } from '@english-learner/types';
 import { Settings, Save, Check, RotateCcw, Type, Eye, ToggleLeft, ToggleRight, AlertCircle, ArrowLeftRight, Gauge } from 'lucide-react';
 
 const DEFAULT_SLOGAN =
@@ -37,7 +38,7 @@ export default function SettingsPage() {
     if (cachedDirection !== null) setMarqueeDirection(cachedDirection);
 
     api
-      .get('/api/settings')
+      .get<IntegrationSettingDTO>('/api/settings')
       .then((res) => {
         if (res.data) {
           if (res.data.marqueeText !== undefined) {
@@ -74,7 +75,7 @@ export default function SettingsPage() {
     setSaveSuccess(false);
     setErrorMessage(null);
 
-    const payload = {
+    const payload: Partial<IntegrationSettingDTO> = {
       marqueeText,
       marqueeEnabled,
       marqueeSpeed,

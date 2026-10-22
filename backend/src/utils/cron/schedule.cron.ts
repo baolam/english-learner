@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '../prisma';
 import { NotificationService } from '../../features/notifications/notification.service';
+import { NotificationType } from '@english-learner/types';
 
 export const startScheduleCron = () => {
   // Run every minute
@@ -29,7 +30,7 @@ export const startScheduleCron = () => {
            await NotificationService.createNotification(
              `Nhắc nhở: ${schedule.title}`,
              `Lịch học "${schedule.title}" sẽ bắt đầu ${diffMins === 0 ? 'ngay bây giờ' : `trong ${diffMins} phút nữa`}.`,
-             'REMINDER'
+             NotificationType.REMINDER
            );
         }
       }

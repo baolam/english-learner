@@ -2,11 +2,12 @@ import { Request, Response } from 'express';
 import * as chatService from './chat.service';
 import { asyncHandler } from '../../utils/async-handler';
 import { NotFoundError, BadRequestError } from '../../errors/app-error';
+import { ChatSourceType, ChatRole } from '@english-learner/types';
 
 export const getAllChatSessions = asyncHandler(async (req: Request, res: Response) => {
   const { sourceType, documentId, screenshotId, audioRecordId, search, page, limit } = req.query;
   const result = await chatService.getAllChatSessions({
-    sourceType: sourceType as string,
+    sourceType: sourceType as ChatSourceType,
     documentId: documentId as string,
     screenshotId: screenshotId as string,
     audioRecordId: audioRecordId as string,
@@ -58,7 +59,7 @@ export const addChatMessage = asyncHandler(async (req: Request, res: Response) =
   }
   const chatMsg = await chatService.addChatMessage({
     chatSessionId: id,
-    role,
+    role: role as ChatRole,
     message,
     extractedData
   });

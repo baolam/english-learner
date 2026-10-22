@@ -1,14 +1,15 @@
 import { prisma } from '../../utils/prisma';
+import { TermType, SourceType, AnkiSyncStatus, ObsidianSyncStatus } from '@english-learner/types';
 
 export interface TermQueryParams {
-  termType?: string;
-  sourceType?: string;
+  termType?: TermType;
+  sourceType?: SourceType;
   documentId?: string;
   screenshotId?: string;
   audioRecordId?: string;
   sessionId?: string;
-  ankiSyncStatus?: string;
-  obsidianSyncStatus?: string;
+  ankiSyncStatus?: AnkiSyncStatus;
+  obsidianSyncStatus?: ObsidianSyncStatus;
   search?: string;
   page?: number;
   limit?: number;
@@ -99,16 +100,16 @@ export const getTermById = async (id: string) => {
 
 export const createTerm = async (data: {
   term: string;
-  termType?: string;
-  sourceType?: string;
+  termType?: TermType;
+  sourceType?: SourceType;
   documentId?: string;
   screenshotId?: string;
   audioRecordId?: string;
   sessionId?: string;
   contextSentence?: string;
   aiExplanation?: string;
-  ankiSyncStatus?: string;
-  obsidianSyncStatus?: string;
+  ankiSyncStatus?: AnkiSyncStatus;
+  obsidianSyncStatus?: ObsidianSyncStatus;
   tags?: string | string[];
 }) => {
   const { tags, ...restData } = data;
@@ -135,16 +136,16 @@ export const updateTerm = async (
   id: string,
   data: Partial<{
     term: string;
-    termType: string;
-    sourceType: string;
+    termType: TermType;
+    sourceType: SourceType;
     documentId: string | null;
     screenshotId: string | null;
     audioRecordId: string | null;
     sessionId: string | null;
     contextSentence: string;
     aiExplanation: string;
-    ankiSyncStatus: string;
-    obsidianSyncStatus: string;
+    ankiSyncStatus: AnkiSyncStatus;
+    obsidianSyncStatus: ObsidianSyncStatus;
     tags: string | string[];
   }>
 ) => {

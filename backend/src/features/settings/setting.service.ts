@@ -1,4 +1,7 @@
 import { prisma } from '../../utils/prisma';
+import { IntegrationSettingDTO } from '@english-learner/types';
+
+export type UpdateSettingsInput = Partial<Omit<IntegrationSettingDTO, 'id' | 'createdAt' | 'updatedAt'>>;
 
 export const SINGLETON_SETTING_ID = 'default';
 
@@ -33,26 +36,7 @@ export const getSettings = async () => {
   });
 };
 
-export const updateSettings = async (data: Partial<{
-  defaultDeckName: string;
-  defaultModelName: string;
-  ankiConnectUrl: string;
-  autoSyncAnki: boolean;
-  obsidianVaultPath: string | null;
-  autoSyncObsidian: boolean;
-  screenshotHotkey: string;
-  audioHotkey: string;
-  textHotkey: string;
-  vadEnabled: boolean;
-  vadThreshold: number;
-  vadSilenceDuration: number;
-  vadUseGpu: boolean;
-  marqueeText: string;
-  marqueeEnabled: boolean;
-  marqueeSpeed: number;
-  marqueeDirection: string;
-  geminiApiKey: string | null;
-}>) => {
+export const updateSettings = async (data: UpdateSettingsInput) => {
 
   return prisma.integrationSetting.upsert({
     where: { id: SINGLETON_SETTING_ID },

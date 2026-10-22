@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@english-learner/types": "*",
     "@hello-pangea/dnd": "^18.0.1",
     "@types/react-big-calendar": "^1.16.3",
     "axios": "^1.20.0",

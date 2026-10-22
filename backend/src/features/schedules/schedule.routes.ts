@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { getSchedules, getScheduleById, createSchedule, updateSchedule, deleteSchedule } from './schedule.controller';
+import { validateRequest } from '../../middlewares/validate.middleware';
+import { createScheduleSchema } from './schedule.schema';
 
 const router = Router();
 
@@ -75,7 +77,7 @@ const router = Router();
  */
 router.get('/', getSchedules);
 router.get('/:id', getScheduleById);
-router.post('/', createSchedule);
+router.post('/', validateRequest(createScheduleSchema), createSchedule);
 
 /**
  * @openapi

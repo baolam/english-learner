@@ -1,7 +1,8 @@
 import { prisma } from '../../utils/prisma';
+import { ChatSourceType, ChatRole } from '@english-learner/types';
 
 export interface ChatSessionQueryParams {
-  sourceType?: string;
+  sourceType?: ChatSourceType;
   documentId?: string;
   screenshotId?: string;
   audioRecordId?: string;
@@ -63,7 +64,7 @@ export const getChatSessionById = async (id: string) => {
 
 export const createChatSession = async (data: {
   title?: string;
-  sourceType?: string;
+  sourceType?: ChatSourceType;
   documentId?: string;
   screenshotId?: string;
   audioRecordId?: string;
@@ -71,7 +72,7 @@ export const createChatSession = async (data: {
   return prisma.chatSession.create({
     data: {
       title: data.title || 'New Chat',
-      sourceType: data.sourceType || 'GENERAL',
+      sourceType: data.sourceType || ChatSourceType.GENERAL,
       documentId: data.documentId,
       screenshotId: data.screenshotId,
       audioRecordId: data.audioRecordId
@@ -83,7 +84,7 @@ export const updateChatSession = async (
   id: string,
   data: Partial<{
     title: string;
-    sourceType: string;
+    sourceType: ChatSourceType;
     documentId: string | null;
     screenshotId: string | null;
     audioRecordId: string | null;
@@ -107,7 +108,7 @@ export const deleteChatSession = async (id: string) => {
 
 export const addChatMessage = async (data: {
   chatSessionId: string;
-  role: 'USER' | 'ASSISTANT';
+  role: ChatRole;
   message: string;
   extractedData?: string;
 }) => {

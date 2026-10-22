@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { DocumentStatus, FileType } from '@english-learner/types';
 import {
   Library as LibraryIcon,
   BookOpen,
@@ -35,8 +36,8 @@ interface DocumentItem {
   author?: string;
   publishedYear?: number;
   tags?: Tag[];
-  fileType?: string;
-  status: 'UNREAD' | 'READING' | 'COMPLETED' | string;
+  fileType?: FileType;
+  status: DocumentStatus;
   readingProgress?: string;
   studySessionId?: string;
   studySession?: StudySession;
@@ -57,8 +58,8 @@ export default function LibraryPage() {
     title: '',
     author: '',
     publishedYear: '',
-    fileType: 'TEXT',
-    status: 'UNREAD',
+    fileType: FileType.TEXT as FileType,
+    status: DocumentStatus.UNREAD as DocumentStatus,
     studySessionId: '',
     content: '',
     tags: ''
@@ -71,7 +72,7 @@ export default function LibraryPage() {
       if (selectedStatus !== 'ALL') params.status = selectedStatus;
       if (searchQuery) params.search = searchQuery;
 
-      const res = await axios.get('http://localhost:3000/api/documents', { params });
+      const res = await api.get('/api/documents', { params });
       setDocuments(res.data.data || []);
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -82,7 +83,7 @@ export default function LibraryPage() {
 
   const fetchStudySessions = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/study-sessions?limit=100');
+      const res = await api.get('/api/study-sessions?limit=100');
       setStudySessions(res.data.data || []);
     } catch (error) {
       console.error('Error fetching study sessions:', error);
@@ -100,8 +101,8 @@ export default function LibraryPage() {
       title: '',
       author: '',
       publishedYear: '',
-      fileType: 'TEXT',
-      status: 'UNREAD',
+      fileType: FileType.TEXT as FileType,
+      status: DocumentStatus.UNREAD as DocumentStatus,
       studySessionId: '',
       content: '',
       tags: ''
@@ -116,7 +117,7 @@ export default function LibraryPage() {
       title: doc.title,
       author: doc.author || '',
       publishedYear: doc.publishedYear ? String(doc.publishedYear) : '',
-      fileType: doc.fileType || 'TEXT',
+      fileType: doc.fileType || FileType.TEXT,
       status: doc.status,
       studySessionId: doc.studySessionId || '',
       content: doc.content || '',
@@ -135,9 +136,9 @@ export default function LibraryPage() {
       };
 
       if (editingDoc) {
-        await axios.put(`http://localhost:3000/api/documents/${editingDoc.id}`, payload);
+        await api.put(`/api/documents/${editingDoc.id}`, payload);
       } else {
-        await axios.post('http://localhost:3000/api/documents', payload);
+        await api.post('/api/documents', payload);
       }
       setIsModalOpen(false);
       fetchDocuments();
@@ -151,7 +152,7 @@ export default function LibraryPage() {
     e?.stopPropagation();
     if (!confirm('Are you sure you want to delete this document?')) return;
     try {
-      await axios.delete(`http://localhost:3000/api/documents/${id}`);
+      await api.delete(`/api/documents/${id}`);
       fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
@@ -357,7 +358,7 @@ export default function LibraryPage() {
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800"
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as DocumentStatus })}
                   >
                     <option value="UNREAD">Unread</option>
                     <option value="READING">Reading</option>
@@ -369,7 +370,7 @@ export default function LibraryPage() {
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-800"
                     value={formData.fileType}
-                    onChange={(e) => setFormData({ ...formData, fileType: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, fileType: e.target.value as FileType })}
                   >
                     <option value="TEXT">TEXT</option>
                     <option value="PDF">PDF</option>

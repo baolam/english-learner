@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { NotificationService } from './notification.service';
+import { asyncHandler } from '../../utils/async-handler';
+import { BadRequestError } from '../../errors/app-error';
+import { NotificationType } from '@english-learner/types';
 
 export const streamNotifications = (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -14,31 +17,22 @@ export const streamNotifications = (req: Request, res: Response) => {
   });
 };
 
-export const getNotifications = async (req: Request, res: Response) => {
-  try {
-    const notifications = await NotificationService.getNotifications();
-    res.json(notifications);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch notifications' });
-  }
-};
+export const getNotifications = asyncHandler(async (req: Request, res: Response) => {
+  const notifications = await NotificationService.getNotifications();
+  res.json(notifications);
+});
 
-export const markAsRead = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const notification = await NotificationService.markAsRead(id);
-    res.json(notification);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to mark as read' });
-  }
-};
+export const markAsRead = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const notification = await NotificationService.markAsRead(id);
+  res.json(notification);
+});
 
-export const createNotification = async (req: Request, res: Response) => {
-  try {
-    const { title, body, type } = req.body;
-    const notification = await NotificationService.createNotification(title, body, type);
-    res.json(notification);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create notification' });
+export const createNotification = asyncHandler(async (req: Request, res: Response) => {
+  const { title, body, type } = req.body;
+  if (!title || !body) {
+    throw new BadRequestError('title and body are required');
   }
-};
+  const notification = await NotificationService.createNotification(title, body, type as NotificationType);
+  res.json(notification);
+});

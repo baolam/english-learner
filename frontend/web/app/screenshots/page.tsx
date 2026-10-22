@@ -2,7 +2,7 @@
 
 import { Image, Upload, Search, Trash2, ExternalLink, X, Info, Monitor, FolderKanban } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { api, getApiBaseUrl } from '@/lib/api';
 
 interface Screenshot {
   filename: string;
@@ -27,7 +27,7 @@ export default function ScreenshotsPage() {
   const fetchScreenshots = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get('http://localhost:3000/media/screenshots');
+      const res = await api.get('/media/screenshots');
       setScreenshots(res.data.files || []);
     } catch (error) {
       console.error('Error fetching screenshots:', error);
@@ -53,7 +53,7 @@ export default function ScreenshotsPage() {
 
     try {
       setIsUploading(true);
-      await axios.post('http://localhost:3000/media/screenshots', formData, {
+      await api.post('/media/screenshots', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -75,7 +75,7 @@ export default function ScreenshotsPage() {
     if (!confirm('Are you sure you want to delete this screenshot?')) return;
 
     try {
-      await axios.delete(`http://localhost:3000/media/screenshots/${filename}`);
+      await api.delete(`/media/screenshots/${filename}`);
       setScreenshots(prev => prev.filter(s => s.filename !== filename));
       if (selectedScreenshot?.filename === filename) {
         setSelectedScreenshot(null);
@@ -169,7 +169,7 @@ export default function ScreenshotsPage() {
             >
               <div className="aspect-video bg-slate-100 relative overflow-hidden flex items-center justify-center">
                 <img
-                  src={`http://localhost:3000${screenshot.url}`}
+                  src={`${getApiBaseUrl()}${screenshot.url}`}
                   alt={screenshot.filename}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -179,7 +179,7 @@ export default function ScreenshotsPage() {
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                   <a
-                    href={`http://localhost:3000${screenshot.url}`}
+                    href={`${getApiBaseUrl()}${screenshot.url}`}
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 transition"
@@ -238,7 +238,7 @@ export default function ScreenshotsPage() {
             {/* Image Preview (Left Side) */}
             <div className="md:w-2/3 bg-slate-900 flex items-center justify-center overflow-hidden relative min-h-0">
               <img
-                src={`http://localhost:3000${selectedScreenshot.url}`}
+                src={`${getApiBaseUrl()}${selectedScreenshot.url}`}
                 alt={selectedScreenshot.filename}
                 className="max-w-full max-h-full object-contain"
               />
@@ -307,7 +307,7 @@ export default function ScreenshotsPage() {
 
               <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
                 <a
-                  href={`http://localhost:3000${selectedScreenshot.url}`}
+                  href={`${getApiBaseUrl()}${selectedScreenshot.url}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium flex items-center gap-2 text-sm"

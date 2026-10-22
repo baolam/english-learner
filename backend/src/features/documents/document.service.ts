@@ -1,10 +1,11 @@
 import { prisma } from '../../utils/prisma';
+import { FileType, DocumentStatus } from '@english-learner/types';
 
 export interface DocumentQueryParams {
   subjectId?: string;
   studySessionId?: string;
-  fileType?: string;
-  status?: string;
+  fileType?: FileType;
+  status?: DocumentStatus;
   search?: string;
   page?: number;
   limit?: number;
@@ -85,8 +86,8 @@ export const createDocument = async (data: {
   tags?: string | string[];
   localPath?: string;
   sourceUrl?: string;
-  fileType?: string;
-  status?: string;
+  fileType?: FileType;
+  status?: DocumentStatus;
   readingProgress?: string;
 }) => {
   const { tags, ...restData } = data;
@@ -122,8 +123,8 @@ export const updateDocument = async (
     tags: string | string[];
     localPath: string;
     sourceUrl: string;
-    fileType: string;
-    status: string;
+    fileType: FileType;
+    status: DocumentStatus;
     readingProgress: string;
   }>
 ) => {

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import * as flashcardController from './flashcard.controller';
+import { validateRequest } from '../../middlewares/validate.middleware';
+import { createDeckSchema, createFlashcardSchema } from './flashcard.schema';
 
 const router = Router();
 
@@ -89,7 +91,7 @@ const router = Router();
  *         description: Deck name is required
  */
 router.get('/decks', flashcardController.getAllDecks);
-router.post('/decks', flashcardController.createDeck);
+router.post('/decks', validateRequest(createDeckSchema), flashcardController.createDeck);
 
 /**
  * @openapi
@@ -206,7 +208,7 @@ router.delete('/decks/:id', flashcardController.deleteDeck);
  *         description: Missing required fields
  */
 router.get('/', flashcardController.getAllFlashcards);
-router.post('/', flashcardController.createFlashcard);
+router.post('/', validateRequest(createFlashcardSchema), flashcardController.createFlashcard);
 
 /**
  * @openapi

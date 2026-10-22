@@ -178,6 +178,7 @@ export interface IntegrationSettingDTO {
   marqueeEnabled: boolean;
   marqueeSpeed: number;
   marqueeDirection: string;
+  geminiApiKey: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }
